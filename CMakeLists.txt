@@ -33,6 +33,9 @@ target_link_libraries(imgui PUBLIC
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
+
+  src/app/application.cpp
+  src/app/main_window.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
