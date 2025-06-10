@@ -6,6 +6,42 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_PARALLEL_LEVEL 0)
 
+find_package(OpenGL REQUIRED)
+
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(vendor/glfw)
+
+add_library(imgui STATIC)
+target_sources(imgui PRIVATE
+  vendor/imgui/imgui.cpp
+  vendor/imgui/imgui_demo.cpp
+  vendor/imgui/imgui_draw.cpp
+  vendor/imgui/imgui_tables.cpp
+  vendor/imgui/imgui_widgets.cpp
+  vendor/imgui/backends/imgui_impl_glfw.cpp
+  vendor/imgui/backends/imgui_impl_opengl3.cpp
+)
+
+target_include_directories(imgui PUBLIC vendor/imgui)
+target_link_libraries(imgui PUBLIC 
+  glfw
+  OpenGL::GL
+)
+
 add_executable(${PROJECT_NAME}
   src/main.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE 
+  src
+
+  vendor
+  vendor/imgui/backends
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  imgui
 )
