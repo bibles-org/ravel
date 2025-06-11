@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 
+#include <app/ctx.h>
 #include <app/main_window.h>
 
 struct GLFWwindow;

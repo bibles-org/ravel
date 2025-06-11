@@ -8,8 +8,7 @@ int main() {
         return -1;
     }
 
-    core::process proc;
-    auto result = proc.enumerate_processes();
+    auto result = app::proc->enumerate_processes();
 
     if (!result.has_value()) {
         std::println("failed, error code {}", static_cast<int>(result.error()));

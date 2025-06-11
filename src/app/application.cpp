@@ -6,6 +6,8 @@
 #include <imgui_impl_opengl3.h>
 
 namespace app {
+    std::unique_ptr<core::process> proc = nullptr;
+
     struct glfw_manager {
         glfw_manager() {
             if (glfwInit())
@@ -40,6 +42,7 @@ namespace app {
         ImGui_ImplGlfw_InitForOpenGL(m_window_handle.get(), true);
         ImGui_ImplOpenGL3_Init("#version 130");
 
+        proc = std::make_unique<core::process>();
         m_main_window = std::make_unique<main_window>();
     }
 
