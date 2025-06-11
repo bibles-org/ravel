@@ -23,7 +23,7 @@ namespace ui {
         ImGuiTextFilter m_filter;
         char m_filter_buffer[256]{};
 
-        void render_process_table(const ImGuiTextFilter& filter);
+        void process_table(const ImGuiTextFilter& filter);
         void attach_action();
     };
 } // namespace ui

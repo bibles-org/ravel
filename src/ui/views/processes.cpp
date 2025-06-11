@@ -31,10 +31,10 @@ namespace ui {
 
         ImGui::Separator();
 
-        render_process_table(m_filter);
+        process_table(m_filter);
     }
 
-    void processes_view::render_process_table(const ImGuiTextFilter& filter) {
+    void processes_view::process_table(const ImGuiTextFilter& filter) {
         const ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
                                       ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY;
 
