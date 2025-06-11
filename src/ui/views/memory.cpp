@@ -195,7 +195,7 @@ namespace ui {
                 ImGui::Text("0x%lX", entry.offset);
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("0x%016lX", entry.addr);
+                ImGui::Text("0x%lX", static_cast<unsigned long>(entry.addr));
 
                 ImGui::TableSetColumnIndex(2);
                 if (entry.valid) {
