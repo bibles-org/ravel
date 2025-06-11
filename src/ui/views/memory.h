@@ -67,6 +67,9 @@ namespace ui {
         std::string format_hex(std::span<const std::byte, 4> data);
         std::string format_ascii(std::span<const std::byte, 4> data);
 
+        std::expected<std::uintptr_t, bool> parse_address_input(std::string_view input);
+        std::expected<std::uintptr_t, bool> dereference_pointer(std::uintptr_t ptr_addr);
+
         template <typename T>
         T bytes_to(std::span<const std::byte, 4> data)
             requires(sizeof(T) == 4 && std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>);

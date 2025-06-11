@@ -119,10 +119,22 @@ namespace ui {
         ImGui::Text("Address:");
         ImGui::SameLine();
         ImGui::PushItemWidth(200);
-        if (ImGui::InputText("##address", addr_input, sizeof(addr_input), ImGuiInputTextFlags_CharsHexadecimal)) {
-            std::uintptr_t addr = 0;
-            if (std::sscanf(addr_input, "%lx", &addr) == 1) {
-                selected_class->addr = addr;
+
+        // todo: fix clang-format buddy...
+        if (ImGui::InputText(
+                    "##address", addr_input, sizeof(addr_input), ImGuiInputTextFlags_CallbackCharFilter,
+                    [](ImGuiInputTextCallbackData* data) -> int {
+                        if (std::isalnum(data->EventChar) || data->EventChar == 'x' || data->EventChar == 'X' ||
+                            data->EventChar == '[' || data->EventChar == ']' || data->EventChar == '+' ||
+                            data->EventChar == '-' || std::isspace(data->EventChar)) {
+                            return 0;
+                        }
+                        return 1;
+                    }
+            )) {
+            auto parsed_address = parse_address_input(std::string_view(addr_input));
+            if (parsed_address.has_value()) {
+                selected_class->addr = *parsed_address;
                 refresh_data();
             }
         }
@@ -260,6 +272,61 @@ namespace ui {
 
             entries.emplace_back(std::move(entry));
         }
+    }
+
+    std::expected<std::uintptr_t, bool> memory_view::parse_address_input(std::string_view input) {
+        if (input.empty()) {
+            return std::unexpected(false);
+        }
+
+        // strip dereference brackets
+        bool do_deref = input.starts_with('[') && input.ends_with(']');
+        if (do_deref) {
+            input.remove_prefix(1);
+            input.remove_suffix(1);
+        }
+
+        if (input.starts_with("0x") || input.starts_with("0X")) {
+            input.remove_prefix(2);
+        }
+
+        // get hex digits
+        std::uintptr_t addr = 0;
+        auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), addr, 16);
+        if (ec != std::errc()) {
+            return std::unexpected(false);
+        }
+
+        if (do_deref) {
+            if (auto pr = dereference_pointer(addr); pr.has_value()) {
+                return *pr;
+            }
+            return std::unexpected(false);
+        }
+
+        return addr;
+    }
+
+    std::expected<std::uintptr_t, bool> memory_view::dereference_pointer(std::uintptr_t ptr_addr) {
+        if (!app::proc || !app::proc->is_attached()) {
+            return std::unexpected(false);
+        }
+
+        std::array<std::byte, sizeof(std::uintptr_t)> buffer;
+        auto result = app::proc->read_memory(ptr_addr, std::span<std::byte>(buffer));
+
+        if (!result.has_value()) {
+            return std::unexpected(false);
+        }
+
+        std::uintptr_t target_addr = 0;
+        std::memcpy(&target_addr, buffer.data(), sizeof(std::uintptr_t));
+
+        if (target_addr == 0) {
+            return std::unexpected(false);
+        }
+
+        return target_addr;
     }
 
     std::expected<std::array<std::byte, 4>, bool> memory_view::read_memory(std::uintptr_t addr) {
