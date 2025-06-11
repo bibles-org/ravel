@@ -3,11 +3,13 @@
 #include <app/main_window.h>
 #include <ui/view.h>
 
+#include <ui/views/memory.h>
 #include <ui/views/processes.h>
 
 namespace app {
     main_window::main_window() {
         m_views.push_back(std::make_unique<ui::processes_view>());
+        m_views.push_back(std::make_unique<ui::memory_viewer>());
     }
 
     main_window::~main_window() = default;

@@ -41,6 +41,7 @@ add_executable(${PROJECT_NAME}
   src/platform/linux_controller.cpp
 
   src/ui/views/processes.cpp
+  src/ui/views/memory.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
