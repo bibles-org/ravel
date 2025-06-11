@@ -109,7 +109,7 @@ namespace ui {
     }
 
     void memory_view::render_memory_view() {
-        if (!selected_idx.has_value()) {
+        if (!selected_idx) {
             ImGui::Text("Select a class to view memory");
             return;
         }
@@ -124,20 +124,20 @@ namespace ui {
         if (ImGui::InputText(
                     "##address", addr_input, sizeof(addr_input), ImGuiInputTextFlags_CallbackCharFilter,
                     [](ImGuiInputTextCallbackData* data) -> int {
-                        if (std::isalnum(data->EventChar) || data->EventChar == 'x' || data->EventChar == 'X' ||
-                            data->EventChar == '[' || data->EventChar == ']' || data->EventChar == '+' ||
-                            data->EventChar == '-' || std::isspace(data->EventChar)) {
+                        const char c = static_cast<char>(data->EventChar);
+                        if (std::isxdigit(static_cast<unsigned char>(c)) || c == 'x' || c == 'X' || c == '[' ||
+                            c == ']' || c == '+' || c == '-' || std::isspace(static_cast<unsigned char>(c))) {
                             return 0;
                         }
                         return 1;
                     }
             )) {
-            auto parsed_address = parse_address_input(std::string_view(addr_input));
-            if (parsed_address.has_value()) {
+            if (auto parsed_address = parse_address_input(std::string_view{addr_input}); parsed_address) {
                 selected_class->addr = *parsed_address;
                 refresh_data();
             }
         }
+
         ImGui::PopItemWidth();
 
         ImGui::SameLine();
@@ -155,10 +155,10 @@ namespace ui {
             ImGui::PopItemWidth();
 
             static float last_refresh = 0.0f;
-            float current_time = ImGui::GetTime();
-            if (current_time - last_refresh >= refresh_rate) {
+            float now = ImGui::GetTime();
+            if (now - last_refresh >= refresh_rate) {
                 refresh_data();
-                last_refresh = current_time;
+                last_refresh = now;
             }
         }
 
