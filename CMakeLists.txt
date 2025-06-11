@@ -36,6 +36,9 @@ add_executable(${PROJECT_NAME}
 
   src/app/application.cpp
   src/app/main_window.cpp
+
+  src/core/process.cpp
+  src/platform/linux_controller.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
