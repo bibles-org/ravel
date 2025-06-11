@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include "ui/theme.h"
 
 namespace app {
     std::unique_ptr<core::process> proc = nullptr;
@@ -41,6 +42,8 @@ namespace app {
 
         ImGui_ImplGlfw_InitForOpenGL(m_window_handle.get(), true);
         ImGui_ImplOpenGL3_Init("#version 130");
+
+        theme::apply();
 
         proc = std::make_unique<core::process>();
         m_main_window = std::make_unique<main_window>();
