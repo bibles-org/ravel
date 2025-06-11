@@ -8,14 +8,14 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/ptrace.h>
 #include <sys/uio.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 namespace platform {
     linux_controller::~linux_controller() {
-        // detach();
+        if (m_mem_fd != -1) {
+            close(m_mem_fd);
+        }
     }
 
     std::optional<std::uint32_t> parse_int(std::string_view s) {
@@ -165,31 +165,34 @@ namespace platform {
     }
 
     std::expected<void, core::error_code> linux_controller::attach(std::uint32_t pid) {
-        if (ptrace(PTRACE_ATTACH, pid, nullptr, nullptr) == -1) {
-            switch (errno) {
-                case EPERM:
-                    return std::unexpected(core::error_code::permission_denied);
-                case ESRCH:
-                    return std::unexpected(core::error_code::process_not_found);
-                default:
-                    return std::unexpected(core::error_code::ptrace_attach_failed);
-            }
+        if (m_mem_fd != -1) {
+            close(m_mem_fd);
+            m_mem_fd = -1;
         }
 
-        int status;
-        if (waitpid(pid, &status, 0) == -1 || !WIFSTOPPED(status)) {
-            ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
-            return std::unexpected(core::error_code::process_wait_failed);
+        std::string mem_path = std::format("/proc/{}/mem", pid);
+        m_mem_fd = open(mem_path.c_str(), O_RDONLY);
+
+        if (m_mem_fd == -1) {
+            switch (errno) {
+                case EACCES:
+                case EPERM:
+                    return std::unexpected(core::error_code::permission_denied);
+                case ENOENT:
+                    return std::unexpected(core::error_code::process_not_found);
+                default:
+                    return std::unexpected(core::error_code::proc_fs_unavailable);
+            }
         }
 
         return {};
     }
 
     void linux_controller::detach(std::uint32_t pid) {
-        if (pid == 0)
-            return;
-
-        ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
+        if (m_mem_fd != -1) {
+            close(m_mem_fd);
+            m_mem_fd = -1;
+        }
     }
 
     std::expected<void, core::error_code>
@@ -216,13 +219,16 @@ namespace platform {
                 case ESRCH:
                     return std::unexpected(core::error_code::process_not_found);
                 case EFAULT:
+                    return std::unexpected(core::error_code::invalid_address);
+                case ENOMEM:
+                    return std::unexpected(core::error_code::out_of_memory);
                 default:
-                    return std::unexpected(core::error_code::ptrace_read_failed);
+                    return std::unexpected(core::error_code::read_failed);
             }
         }
 
         if (static_cast<size_t>(bytes_read) != buffer.size()) {
-            return std::unexpected(core::error_code::ptrace_read_failed);
+            return std::unexpected(core::error_code::partial_read);
         }
 
         return {};

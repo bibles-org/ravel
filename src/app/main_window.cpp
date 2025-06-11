@@ -9,7 +9,7 @@
 namespace app {
     main_window::main_window() {
         m_views.push_back(std::make_unique<ui::processes_view>());
-        m_views.push_back(std::make_unique<ui::memory_viewer>());
+        m_views.push_back(std::make_unique<ui::memory_view>());
     }
 
     main_window::~main_window() = default;

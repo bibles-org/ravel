@@ -6,6 +6,11 @@ namespace core {
         permission_denied,
         process_not_found,
 
+        invalid_address,
+        out_of_memory,
+        read_failed,
+        partial_read,
+
         ptrace_attach_failed,
         ptrace_detach_failed,
         ptrace_read_failed,
