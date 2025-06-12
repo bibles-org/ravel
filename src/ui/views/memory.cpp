@@ -54,6 +54,7 @@ namespace ui {
                 refresh_data();
             }
 
+
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Delete")) {
                     remove_class(i);
@@ -63,6 +64,19 @@ namespace ui {
                 }
                 if (ImGui::MenuItem("Rename")) {
                     // todo: implement
+                }
+                ImGui::Separator();
+
+                static const std::vector<std::size_t> sizes = {256, 512, 1024, 2048, 4096};
+                for (auto sz : sizes) {
+                    char label[32];
+                    snprintf(label, sizeof(label), "Show %zu bytes", sz);
+                    if (ImGui::MenuItem(label, nullptr, cls->size == sz)) {
+                        cls->size = sz;
+                        if (selected_idx == i) {
+                            refresh_data();
+                        }
+                    }
                 }
                 ImGui::EndPopup();
             }
