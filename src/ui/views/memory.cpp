@@ -5,9 +5,7 @@
 #include <ui/views/memory.h>
 
 namespace ui {
-    memory_view::memory_view() :
-        view("Memory"), entries_per_page(64), current_page(0), show_add_popup(false), auto_refresh(false),
-        refresh_rate(1.0f) {
+    memory_view::memory_view() : view("Memory"), show_add_popup(false), auto_refresh(false), refresh_rate(1.0f) {
 
         std::memset(new_class_name, 0, sizeof(new_class_name));
         std::memset(addr_input, 0, sizeof(addr_input));
@@ -155,7 +153,7 @@ namespace ui {
             ImGui::PopItemWidth();
 
             static float last_refresh = 0.0f;
-            float now = ImGui::GetTime();
+            float now = static_cast<float>(ImGui::GetTime());
             if (now - last_refresh >= refresh_rate) {
                 refresh_data();
                 last_refresh = now;
@@ -233,7 +231,7 @@ namespace ui {
         if (index >= classes.size())
             return;
 
-        classes.erase(classes.begin() + index);
+        classes.erase(classes.begin() + static_cast<ptrdiff_t>(index));
 
         if (selected_idx.has_value()) {
             if (*selected_idx == index) {

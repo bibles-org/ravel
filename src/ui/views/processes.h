@@ -21,7 +21,6 @@ namespace ui {
         std::optional<std::size_t> m_selected_index;
 
         ImGuiTextFilter m_filter;
-        char m_filter_buffer[256]{};
 
         void process_table(const ImGuiTextFilter& filter);
         void attach_action();

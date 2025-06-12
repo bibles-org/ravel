@@ -44,8 +44,6 @@ namespace ui {
         std::vector<std::unique_ptr<memory_class>> classes;
         std::optional<std::size_t> selected_idx;
         std::vector<memory_entry> entries;
-        std::size_t entries_per_page;
-        std::size_t current_page;
 
         char new_class_name[256];
         char addr_input[32];

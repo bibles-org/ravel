@@ -188,7 +188,7 @@ namespace platform {
         return {};
     }
 
-    void linux_controller::detach(std::uint32_t pid) {
+    void linux_controller::detach(std::uint32_t) {
         if (m_mem_fd != -1) {
             close(m_mem_fd);
             m_mem_fd = -1;
@@ -209,7 +209,7 @@ namespace platform {
         remote_iov.iov_base = reinterpret_cast<void*>(address);
         remote_iov.iov_len = buffer.size();
 
-        ssize_t bytes_read = process_vm_readv(pid, &local_iov, 1, &remote_iov, 1, 0);
+        ssize_t bytes_read = process_vm_readv(static_cast<pid_t>(pid), &local_iov, 1, &remote_iov, 1, 0);
 
         if (bytes_read == -1) {
             switch (errno) {

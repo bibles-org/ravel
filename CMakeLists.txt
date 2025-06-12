@@ -53,3 +53,18 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
   imgui
 )
+
+target_compile_options(${PROJECT_NAME} PRIVATE
+  -Wall
+  -Wextra
+  -Wpedantic
+  -Wshadow
+  -Wconversion
+  -Wsign-conversion
+  -Wpointer-arith
+  -Wstrict-overflow=5
+  -Wnull-dereference
+  -Wformat=2
+  -Wcast-align
+  -Wstrict-aliasing=2
+)
