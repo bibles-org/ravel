@@ -35,7 +35,6 @@ add_executable(${PROJECT_NAME}
   src/main.cpp
 
   src/app/application.cpp
-  src/app/main_window.cpp
 
   src/core/process.cpp
   src/platform/linux_controller.cpp

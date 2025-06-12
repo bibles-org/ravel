@@ -3,11 +3,15 @@
 #include <expected>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 #include <app/ctx.h>
-#include <app/main_window.h>
 
 struct GLFWwindow;
+
+namespace ui {
+    class view;
+}
 
 namespace app {
     enum class init_error {
@@ -36,7 +40,10 @@ namespace app {
             void operator()(GLFWwindow* w);
         };
 
+        void render_ui();
+        void render_toolbar();
+
         std::unique_ptr<GLFWwindow, glfw_deleter> m_window_handle;
-        std::unique_ptr<main_window> m_main_window;
+        std::vector<std::unique_ptr<ui::view>> m_views;
     };
 } // namespace app

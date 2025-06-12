@@ -4,7 +4,11 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
 #include "ui/theme.h"
+#include "ui/view.h"
+#include "ui/views/memory.h"
+#include "ui/views/processes.h"
 
 namespace app {
     std::unique_ptr<core::process> proc = nullptr;
@@ -46,11 +50,12 @@ namespace app {
         theme::apply();
 
         proc = std::make_unique<core::process>();
-        m_main_window = std::make_unique<main_window>();
+
+        m_views.push_back(std::make_unique<ui::processes_view>());
+        m_views.push_back(std::make_unique<ui::memory_view>());
     }
 
     application::~application() {
-        m_main_window.reset();
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
@@ -69,7 +74,7 @@ namespace app {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            m_main_window->render();
+            render_ui();
 
             ImGui::Render();
 
@@ -77,6 +82,33 @@ namespace app {
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             glfwSwapBuffers(m_window_handle.get());
+        }
+    }
+
+    void application::render_ui() {
+        render_toolbar();
+
+        for (const auto& view : m_views) {
+            if (view->is_visible()) {
+                ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+
+                if (ImGui::Begin(view->get_title().data(), view->get_visibility_flag())) {
+                    view->render();
+                }
+                ImGui::End();
+            }
+        }
+    }
+
+    void application::render_toolbar() {
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("View")) {
+                for (const auto& view : m_views) {
+                    ImGui::MenuItem(view->get_title().data(), nullptr, view->get_visibility_flag());
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
         }
     }
 } // namespace app
