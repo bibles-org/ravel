@@ -310,15 +310,15 @@ namespace ui {
             return std::unexpected(false);
         }
 
-        std::array<std::byte, sizeof(std::uintptr_t)> buffer;
-        auto result = app::proc->read_memory(ptr_addr, std::span<std::byte>(buffer));
+        std::array<std::byte, sizeof(std::uintptr_t)> buffer{};
+        auto result = app::proc->read_memory(ptr_addr, std::span(buffer));
 
         if (!result.has_value()) {
             return std::unexpected(false);
         }
 
         std::uintptr_t target_addr = 0;
-        std::memcpy(&target_addr, buffer.data(), sizeof(std::uintptr_t));
+        std::memcpy(&target_addr, buffer.data(), sizeof(target_addr));
 
         if (target_addr == 0) {
             return std::unexpected(false);
