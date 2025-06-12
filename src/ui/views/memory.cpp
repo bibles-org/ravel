@@ -1,7 +1,7 @@
+#include <algorithm>
 #include <app/ctx.h>
 #include <cstring>
-#include <iomanip>
-#include <sstream>
+#include <ranges>
 #include <ui/views/memory.h>
 
 namespace ui {
@@ -344,13 +344,18 @@ namespace ui {
     }
 
     std::string memory_view::format_hex(std::span<const std::byte, 4> data) {
-        std::stringstream ss;
-        for (std::size_t i = 0; i < data.size(); ++i) {
-            if (i > 0)
-                ss << " ";
-            ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<unsigned int>(data[i]);
-        }
-        return ss.str();
+        return std::ranges::fold_left(
+                data | std::ranges::views::transform([](std::byte b) {
+                    return std::format("{:02X}", std::to_integer<unsigned int>(b));
+                }),
+                std::string{},
+                [](std::string acc, std::string val) {
+                    if (!acc.empty())
+                        acc += ' ';
+                    acc += std::move(val);
+                    return acc;
+                }
+        );
     }
 
     std::string memory_view::format_ascii(std::span<const std::byte, 4> data) {
