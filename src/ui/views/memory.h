@@ -29,6 +29,7 @@ namespace ui {
         std::size_t offset;
         std::uintptr_t addr;
         std::array<std::byte, 4> data;
+        std::optional<std::string> dereferenced_string;
         bool valid;
 
         memory_entry() : offset(0), addr(0), data{}, valid(false) {
@@ -67,6 +68,9 @@ namespace ui {
 
         std::expected<std::uintptr_t, bool> parse_address_input(std::string_view input);
         std::expected<std::uintptr_t, bool> dereference_pointer(std::uintptr_t ptr_addr);
+
+        std::optional<std::string> dereference_as_string(std::span<const std::byte, 4> data);
+        std::optional<std::string> read_string(std::uintptr_t addr, std::size_t max_len = 64);
 
         template <typename T>
         T bytes_to(std::span<const std::byte, 4> data)

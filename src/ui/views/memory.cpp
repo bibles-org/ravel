@@ -190,7 +190,7 @@ namespace ui {
         }
 
         if (ImGui::BeginTable(
-                    "MemoryTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
+                    "MemoryTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
             )) {
 
             ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 80.0f);
@@ -198,6 +198,7 @@ namespace ui {
             ImGui::TableSetupColumn("ASCII", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("Hex", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn("Int32 / Float", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("String ->", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
 
             for (const auto& entry : entries) {
@@ -230,6 +231,11 @@ namespace ui {
                     ImGui::Text("%d / %.6f", int_val, float_val);
                 } else {
                     ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "???? / ????");
+                }
+
+                ImGui::TableSetColumnIndex(5);
+                if (entry.valid && entry.dereferenced_string) {
+                    ImGui::Text("\"%s\"", entry.dereferenced_string->c_str());
                 }
             }
 
@@ -278,6 +284,7 @@ namespace ui {
             if (result.has_value()) {
                 entry.data = result.value();
                 entry.valid = true;
+                entry.dereferenced_string = dereference_as_string(entry.data);
             } else {
                 entry.valid = false;
             }
@@ -339,6 +346,56 @@ namespace ui {
         }
 
         return target_addr;
+    }
+
+    std::optional<std::string> memory_view::dereference_as_string(std::span<const std::byte, 4> data) {
+        auto potential_addr = bytes_to<std::uint32_t>(data);
+
+        if (!is_valid_addr(static_cast<std::uintptr_t>(potential_addr))) {
+            return std::nullopt;
+        }
+
+        return read_string(static_cast<std::uintptr_t>(potential_addr));
+    }
+
+    std::optional<std::string> memory_view::read_string(std::uintptr_t addr, std::size_t max_len) {
+        if (!app::proc || !app::proc->is_attached()) {
+            return std::nullopt;
+        }
+
+        std::string result;
+        bool success = false;
+
+        result.resize_and_overwrite(max_len, [&](char* data, std::size_t size) -> std::size_t {
+            auto read_op = app::proc->read_memory(addr, std::as_writable_bytes(std::span(data, size)));
+            if (!read_op) {
+                return 0;
+            }
+            success = true;
+
+            // read max_len bytes but we will find the null terminator next
+            return max_len;
+        });
+
+        if (!success) {
+            return std::nullopt;
+        }
+
+        auto null_terminator = std::find(result.begin(), result.end(), '\0');
+        if (null_terminator == result.end()) {
+            return std::nullopt;
+        }
+
+        // shrink string to actual length before null terminator
+        result.erase(null_terminator, result.end());
+
+        if (!std::ranges::all_of(result, [](char c) {
+                return std::isprint(static_cast<unsigned char>(c));
+            })) {
+            return std::nullopt;
+        }
+
+        return result;
     }
 
     std::expected<std::array<std::byte, 4>, bool> memory_view::read_memory(std::uintptr_t addr) {
