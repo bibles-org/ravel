@@ -14,6 +14,22 @@
 #include <imgui_internal.h>
 
 namespace ui {
+    enum class memory_type {
+        int8,
+        uint8,
+        int16,
+        uint16,
+        int32,
+        uint32,
+        int64,
+        uint64,
+        float32,
+        float64,
+        pointer,
+        text,
+        bytes
+    };
+
     struct memory_class {
         std::string name;
         std::uintptr_t addr;
@@ -28,11 +44,13 @@ namespace ui {
     struct memory_entry {
         std::size_t offset;
         std::uintptr_t addr;
-        std::array<std::byte, 4> data;
+        std::vector<std::byte> data;
         std::optional<std::string> dereferenced_string;
+        memory_type type;
+        std::size_t type_size;
         bool valid;
 
-        memory_entry() : offset(0), addr(0), data{}, valid(false) {
+        memory_entry() : offset(0), addr(0), type(memory_type::int32), type_size(4), valid(false) {
         }
     };
 
@@ -62,20 +80,25 @@ namespace ui {
         void remove_class(std::size_t index);
         void refresh_data();
 
-        std::expected<std::array<std::byte, 4>, bool> read_memory(std::uintptr_t addr);
-        std::string format_hex(std::span<const std::byte, 4> data);
-        std::string format_ascii(std::span<const std::byte, 4> data);
+        std::expected<std::vector<std::byte>, bool> read_memory(std::uintptr_t addr, std::size_t size);
+        std::string format_hex(std::span<const std::byte> data);
+        std::string format_ascii(std::span<const std::byte> data);
+        std::string format_typed_value(const memory_entry& entry);
 
         std::expected<std::uintptr_t, bool> parse_address_input(std::string_view input);
         std::expected<std::uintptr_t, bool> dereference_pointer(std::uintptr_t ptr_addr);
 
-        std::optional<std::string> dereference_as_string(std::span<const std::byte, 4> data);
+        std::optional<std::string> dereference_as_string(std::span<const std::byte> data);
         std::optional<std::string> read_string(std::uintptr_t addr, std::size_t max_len = 64);
 
         template <typename T>
-        T bytes_to(std::span<const std::byte, 4> data)
-            requires(sizeof(T) == 4 && std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>);
+        T bytes_to(std::span<const std::byte> data)
+            requires(std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>);
 
         bool is_valid_addr(std::uintptr_t addr);
+        std::size_t get_type_size(memory_type type);
+        const char* get_type_name(memory_type type);
+        void change_entry_type(std::size_t entry_idx, memory_type new_type);
+        void rebuild_entries_from_index(std::size_t start_idx);
     };
 } // namespace ui
