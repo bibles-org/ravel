@@ -1,15 +1,15 @@
 #include <algorithm>
 #include <app/ctx.h>
 #include <cstring>
+#include <numeric>
 #include <ranges>
 #include <ui/views/memory.h>
+#include <ui/theme.h>
 
 namespace ui {
     memory_view::memory_view() : view("Memory"), show_add_popup(false), auto_refresh(false), refresh_rate(1.0f) {
-
         std::memset(new_class_name, 0, sizeof(new_class_name));
         std::memset(addr_input, 0, sizeof(addr_input));
-
         add_class("Default Class");
     }
 
@@ -18,7 +18,7 @@ namespace ui {
 
         static bool first_time = true;
         if (first_time) {
-            ImGui::SetColumnWidth(0, 250.0f);
+            ImGui::SetColumnWidth(0, 280.0f);
             first_time = false;
         }
 
@@ -31,45 +31,65 @@ namespace ui {
     }
 
     void memory_view::render_sidebar() {
-        ImGui::Text("Classes");
-        ImGui::Separator();
+        ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG);
+        ImGui::Text("Memory Classes");
+        ImGui::PopStyleColor();
 
-        if (ImGui::Button("Add Class", ImVec2(-1, 0))) {
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("+ Add New Class", ImVec2(-1, 30))) {
             show_add_popup = true;
         }
-
         ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         render_class_list();
     }
 
     void memory_view::render_class_list() {
         for (std::size_t i = 0; i < classes.size(); ++i) {
             const auto& cls = classes[i];
-
             ImGui::PushID(static_cast<int>(i));
 
             bool is_selected = (selected_idx == i);
-            if (ImGui::Selectable(cls->name.c_str(), is_selected)) {
+
+            if (is_selected) {
+                ImGui::PushStyleColor(ImGuiCol_Header, theme::with_alpha(theme::colors::BLUE, 0.8f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::with_alpha(theme::colors::BLUE, 0.9f));
+            }
+
+            if (ImGui::Selectable(cls->name.c_str(), is_selected, 0, ImVec2(0, 25))) {
                 selected_idx = i;
                 refresh_data();
             }
 
+            if (is_selected) {
+                ImGui::PopStyleColor(2);
+            }
+
             if (ImGui::BeginPopupContextItem()) {
-                if (ImGui::MenuItem("Delete")) {
+                ImGui::Text("Class Options");
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Delete Class")) {
                     remove_class(i);
                     ImGui::EndPopup();
                     ImGui::PopID();
                     break;
                 }
-                if (ImGui::MenuItem("Rename")) {
-                    // todo: implement
-                }
-                ImGui::Separator();
 
-                static const std::vector<std::size_t> sizes = {256, 512, 1024, 2048, 4096};
+                if (ImGui::MenuItem("Rename Class")) {
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Memory Size:");
+
+                static const std::vector<std::size_t> sizes = {256, 512, 1024, 2048, 4096, 8192};
                 for (auto sz : sizes) {
-                    char label[32];
-                    snprintf(label, sizeof(label), "Show %zu bytes", sz);
+                    char label[64];
+                    snprintf(label, sizeof(label), "%zu bytes", sz);
                     if (ImGui::MenuItem(label, nullptr, cls->size == sz)) {
                         cls->size = sz;
                         if (selected_idx == i) {
@@ -81,25 +101,45 @@ namespace ui {
             }
 
             if (cls->addr != 0) {
-                ImGui::Text("  0x%016lX", cls->addr);
+                ImGui::Indent(15.0f);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+                ImGui::Text("0x%016lX", cls->addr);
+                ImGui::Text("%zu bytes", cls->size);
+                ImGui::PopStyleColor();
+                ImGui::Unindent(15.0f);
+            } else {
+                ImGui::Indent(15.0f);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
+                ImGui::Text("No address set");
+                ImGui::PopStyleColor();
+                ImGui::Unindent(15.0f);
             }
 
+            ImGui::Spacing();
             ImGui::PopID();
         }
     }
 
     void memory_view::render_add_popup() {
         if (show_add_popup) {
-            ImGui::OpenPopup("Add Class");
+            ImGui::OpenPopup("Add Memory Class");
         }
 
-        if (ImGui::BeginPopupModal("Add Class", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::Text("Enter class name:");
+        if (ImGui::BeginPopupModal("Add Memory Class", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Create a new memory class:");
+            ImGui::Spacing();
+
+            ImGui::Text("Class Name:");
+            ImGui::SetNextItemWidth(250);
             ImGui::InputText("##class_name", new_class_name, sizeof(new_class_name));
 
             ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
 
-            if (ImGui::Button("Add", ImVec2(120, 0))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::GREEN);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::GREEN, 0.9f));
+            if (ImGui::Button("Create", ImVec2(120, 30))) {
                 if (std::strlen(new_class_name) > 0) {
                     add_class(std::string_view(new_class_name));
                     std::memset(new_class_name, 0, sizeof(new_class_name));
@@ -107,13 +147,17 @@ namespace ui {
                 show_add_popup = false;
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::PopStyleColor(2);
 
             ImGui::SameLine();
 
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::RED);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::RED, 0.9f));
+            if (ImGui::Button("Cancel", ImVec2(120, 30))) {
                 show_add_popup = false;
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::PopStyleColor(2);
 
             ImGui::EndPopup();
         }
@@ -121,15 +165,30 @@ namespace ui {
 
     void memory_view::render_memory_view() {
         if (!selected_idx) {
-            ImGui::Text("Select a class to view memory");
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 50);
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+
+            float window_width = ImGui::GetContentRegionAvail().x;
+            const char* text = "Select a memory class to view its contents";
+            float text_width = ImGui::CalcTextSize(text).x;
+            ImGui::SetCursorPosX((window_width - text_width) * 0.5f);
+
+            ImGui::Text("%s", text);
+            ImGui::PopStyleColor();
             return;
         }
 
         auto& selected_class = classes[*selected_idx];
 
-        ImGui::Text("Address:");
+        ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG);
+        ImGui::Text("Memory Inspector - %s", selected_class->name.c_str());
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::Text("Memory Address:");
         ImGui::SameLine();
-        ImGui::PushItemWidth(200);
+        ImGui::SetNextItemWidth(220);
 
         if (ImGui::InputText(
                     "##address", addr_input, sizeof(addr_input), ImGuiInputTextFlags_CallbackCharFilter,
@@ -148,21 +207,21 @@ namespace ui {
             }
         }
 
-        ImGui::PopItemWidth();
-
         ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::BLUE);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::BLUE, 0.9f));
         if (ImGui::Button("Refresh")) {
             refresh_data();
         }
+        ImGui::PopStyleColor(2);
 
         ImGui::SameLine();
         ImGui::Checkbox("Auto-refresh", &auto_refresh);
 
         if (auto_refresh) {
             ImGui::SameLine();
-            ImGui::PushItemWidth(80);
+            ImGui::SetNextItemWidth(100);
             ImGui::SliderFloat("##refresh_rate", &refresh_rate, 0.1f, 5.0f, "%.1fs");
-            ImGui::PopItemWidth();
 
             static float last_refresh = 0.0f;
             float now = static_cast<float>(ImGui::GetTime());
@@ -172,99 +231,150 @@ namespace ui {
             }
         }
 
+        ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
+
         render_memory_table();
     }
 
     void memory_view::render_memory_table() {
         if (!app::proc || !app::proc->is_attached()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
             ImGui::Text("No process attached");
+            ImGui::PopStyleColor();
             return;
         }
 
         if (entries.empty()) {
-            ImGui::Text("No memory data available");
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::ORANGE);
+            ImGui::Text("No memory data available - set an address to begin");
+            ImGui::PopStyleColor();
             return;
         }
 
         if (ImGui::BeginTable(
-                    "MemoryTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
+                    "MemoryTable", 6,
+                    ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
+                            ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable
             )) {
 
             ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-            ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("Hex", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+            ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+            ImGui::TableSetupColumn("Raw Bytes", ImGuiTableColumnFlags_WidthFixed, 160.0f);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("ASCII", ImGuiTableColumnFlags_WidthFixed, 120.0f);
             ImGui::TableSetupColumn("String ->", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
 
             for (std::size_t i = 0; i < entries.size(); ++i) {
                 const auto& entry = entries[i];
-
                 ImGui::TableNextRow();
                 ImGui::PushID(static_cast<int>(i));
 
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("0x%lX", entry.offset);
+                ImGui::Text("+0x%04lX", entry.offset);
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("0x%lX", static_cast<unsigned long>(entry.addr));
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::CYAN);
+                ImGui::Text("0x%08lX", static_cast<unsigned long>(entry.addr));
+                ImGui::PopStyleColor();
 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Selectable(
-                        get_type_name(entry.type), false,
-                        ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap
-                );
-
-                char popup_id[32];
-                snprintf(popup_id, sizeof(popup_id), "TypeMenu_%zu", i);
-                if (ImGui::BeginPopupContextItem(popup_id)) {
-                    ImGui::Text("Change Type:");
-                    ImGui::Separator();
-
-                    static const std::vector<std::pair<memory_type, const char*>> type_options = {
-                            {memory_type::int8,    "Int8"   },
-                            {memory_type::uint8,   "UInt8"  },
-                            {memory_type::int16,   "Int16"  },
-                            {memory_type::uint16,  "UInt16" },
-                            {memory_type::int32,   "Int32"  },
-                            {memory_type::uint32,  "UInt32" },
-                            {memory_type::int64,   "Int64"  },
-                            {memory_type::uint64,  "UInt64" },
-                            {memory_type::float32, "Float"  },
-                            {memory_type::float64, "Double" },
-                            {memory_type::pointer, "Pointer"},
-                            {memory_type::text,    "Text"   },
-                            {memory_type::bytes,   "Bytes"  }
-                    };
-
-                    for (const auto& [type, name] : type_options) {
-                        if (ImGui::MenuItem(name, nullptr, entry.type == type)) {
-                            change_entry_type(i, type);
-                        }
-                    }
-
-                    ImGui::EndPopup();
+                if (entry.valid) {
+                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::get_bytes_color());
+                    ImGui::Text("%s", format_hex(entry.data).c_str());
+                    ImGui::PopStyleColor();
+                    ImGui::PopFont();
+                } else {
+                    ImGui::TextColored(theme::colors::RED, "read error");
                 }
 
                 ImGui::TableSetColumnIndex(3);
                 if (entry.valid) {
-                    ImGui::Text("%s", format_hex(entry.data).c_str());
+                    std::string combined_display_str =
+                            std::string(get_type_name(entry.type)) + ": " + format_typed_value(entry);
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::get_value_color());
+                    bool item_clicked = ImGui::Selectable(
+                            combined_display_str.c_str(), false,
+                            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap
+                    );
+                    ImGui::PopStyleColor();
+
+                    char popup_id[32];
+                    snprintf(popup_id, sizeof(popup_id), "TypeMenu_%zu", i);
+
+                    if (item_clicked) {
+                        ImGui::OpenPopup(popup_id);
+                    }
+
+                    if (ImGui::BeginPopupContextItem(popup_id)) {
+                        if (!ImGui::IsPopupOpen(popup_id)) {
+                            ImGui::OpenPopup(popup_id);
+                        }
+                    }
+
+                    if (ImGui::BeginPopup(popup_id)) {
+                        ImGui::Text("Change Data Type:");
+                        ImGui::Separator();
+
+                        static const std::vector<std::pair<memory_type, const char*>> type_options = {
+                                {memory_type::int8,    "Int8 (1 byte)"    },
+                                {memory_type::uint8,   "UInt8 (1 byte)"   },
+                                {memory_type::int16,   "Int16 (2 bytes)"  },
+                                {memory_type::uint16,  "UInt16 (2 bytes)" },
+                                {memory_type::int32,   "Int32 (4 bytes)"  },
+                                {memory_type::uint32,  "UInt32 (4 bytes)" },
+                                {memory_type::int64,   "Int64 (8 bytes)"  },
+                                {memory_type::uint64,  "UInt64 (8 bytes)" },
+                                {memory_type::float32, "Float (4 bytes)"  },
+                                {memory_type::float64, "Double (8 bytes)" },
+                                {memory_type::pointer, "Pointer (8 bytes)"},
+                                {memory_type::text,    "Text"             },
+                                {memory_type::bytes,   "Raw Bytes"        }
+                        };
+
+                        for (const auto& [type_val, name] : type_options) {
+                            if (ImGui::MenuItem(name, nullptr, entry.type == type_val)) {
+                                change_entry_type(i, type_val);
+                            }
+                        }
+                        ImGui::EndPopup();
+                    }
                 } else {
-                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "??");
+                    ImGui::TextColored(theme::colors::RED, "invalid");
                 }
 
                 ImGui::TableSetColumnIndex(4);
                 if (entry.valid) {
-                    ImGui::Text("%s", format_typed_value(entry).c_str());
+                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::GREEN);
+                    std::string ascii_repr = format_ascii(entry.data);
+                    ImGui::Text("'%s'", ascii_repr.c_str());
+                    ImGui::PopStyleColor();
+                    ImGui::PopFont();
                 } else {
-                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "????");
+                    ImGui::TextColored(theme::colors::FG_DARK, "---");
                 }
 
                 ImGui::TableSetColumnIndex(5);
                 if (entry.valid && entry.dereferenced_string) {
-                    ImGui::Text("\"%s\"", entry.dereferenced_string->c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::YELLOW);
+                    std::string display_str = *entry.dereferenced_string;
+                    if (display_str.length() > 40) {
+                        display_str = display_str.substr(0, 37) + "...";
+                    }
+                    ImGui::Text("\"%s\"", display_str.c_str());
+                    ImGui::PopStyleColor();
+
+                    if (ImGui::IsItemHovered() && entry.dereferenced_string->length() > 40) {
+                        ImGui::BeginTooltip();
+                        ImGui::Text("Full string: \"%s\"", entry.dereferenced_string->c_str());
+                        ImGui::EndTooltip();
+                    }
+                } else {
+                    ImGui::TextColored(theme::colors::FG_DARK, "---");
                 }
 
                 ImGui::PopID();
@@ -272,6 +382,27 @@ namespace ui {
 
             ImGui::EndTable();
         }
+    }
+
+    std::string memory_view::format_ascii(std::span<const std::byte> data) {
+        std::string result;
+        result.reserve(data.size());
+
+        for (const auto& byte : data) {
+            unsigned char c = static_cast<unsigned char>(byte);
+            if (c >= 32 && c <= 126) {
+                result += static_cast<char>(c);
+            } else if (c == '\n') {
+                result += "\\n";
+            } else if (c == '\r') {
+                result += "\\r";
+            } else if (c == '\t') {
+                result += "\\t";
+            } else {
+                result += ".";
+            }
+        }
+        return result;
     }
 
     void memory_view::add_class(std::string_view name) {
@@ -313,7 +444,6 @@ namespace ui {
             entry.type = memory_type::int32;
             entry.type_size = get_type_size(entry.type);
 
-            // dont read beyond the class size
             std::size_t bytes_to_read = std::min(entry.type_size, selected_class->size - bytes_processed);
 
             auto result = read_memory(entry.addr, bytes_to_read);
@@ -338,7 +468,6 @@ namespace ui {
             return std::unexpected(false);
         }
 
-        // strip dereference brackets
         bool do_deref = input.starts_with('[') && input.ends_with(']');
         if (do_deref) {
             input.remove_prefix(1);
@@ -349,7 +478,6 @@ namespace ui {
             input.remove_prefix(2);
         }
 
-        // get hex digits
         std::uintptr_t addr = 0;
         auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), addr, 16);
         if (ec != std::errc()) {
@@ -467,20 +595,9 @@ namespace ui {
         );
     }
 
-    std::string memory_view::format_ascii(std::span<const std::byte> data) {
-        std::string result;
-        result.reserve(data.size());
-
-        for (const auto& byte : data) {
-            unsigned char c = static_cast<unsigned char>(byte);
-            result += (c >= 32 && c <= 126) ? static_cast<char>(c) : '.';
-        }
-        return result;
-    }
-
     std::string memory_view::format_typed_value(const memory_entry& entry) {
         if (!entry.valid || entry.data.empty()) {
-            return "????";
+            return "invalid";
         }
 
         switch (entry.type) {
@@ -545,7 +662,7 @@ namespace ui {
                 return format_hex(entry.data);
         }
 
-        return "????";
+        return "invalid";
     }
 
     template <typename T>
@@ -580,7 +697,7 @@ namespace ui {
                 return 8;
             case memory_type::text:
             case memory_type::bytes:
-                return 16; // default size for text/bytes
+                return 16;
         }
         return 4;
     }
@@ -625,7 +742,6 @@ namespace ui {
         entries[entry_idx].type = new_type;
         entries[entry_idx].type_size = get_type_size(new_type);
 
-        // reread memory with the new size
         auto result = read_memory(entries[entry_idx].addr, entries[entry_idx].type_size);
         if (result.has_value()) {
             entries[entry_idx].data = std::move(result.value());
@@ -636,44 +752,50 @@ namespace ui {
             entries[entry_idx].valid = false;
         }
 
-        // rebuild subsequent entries since
-        // the memory layout may have changed
         rebuild_entries_from_index(entry_idx + 1);
     }
 
     void memory_view::rebuild_entries_from_index(std::size_t start_idx) {
-        if (!selected_idx.has_value() || start_idx >= entries.size()) {
+        if (!selected_idx || start_idx > entries.size())
             return;
-        }
 
         const auto& selected_class = classes[*selected_idx];
+        std::size_t bytes_processed = std::accumulate(
+                entries.begin(), entries.begin() + static_cast<ptrdiff_t>(start_idx), 0ULL,
+                [](std::size_t sum, const memory_entry& e) {
+                    return sum + e.type_size;
+                }
+        );
 
-        std::size_t bytes_processed = 0;
-        for (std::size_t i = 0; i < start_idx; ++i) {
-            bytes_processed += entries[i].type_size;
-        }
-
-        // remove entries that are now invalid
         entries.erase(entries.begin() + static_cast<ptrdiff_t>(start_idx), entries.end());
 
         std::uintptr_t current_addr = selected_class->addr + bytes_processed;
+        const auto default_type = [&]() -> memory_type {
+            if (start_idx > 0 && start_idx <= entries.size())
+                return entries[start_idx - 1].type;
+            return memory_type::int32;
+        }();
 
         while (bytes_processed < selected_class->size) {
             memory_entry entry;
             entry.offset = bytes_processed;
             entry.addr = current_addr;
-            entry.type = memory_type::int32;
+            entry.type = default_type;
+
             entry.type_size = get_type_size(entry.type);
-
             std::size_t bytes_to_read = std::min(entry.type_size, selected_class->size - bytes_processed);
+            if (bytes_to_read == 0 && selected_class->size > bytes_processed)
+                bytes_to_read = entry.type_size;
 
-            auto result = read_memory(entry.addr, bytes_to_read);
-            if (result.has_value()) {
-                entry.data = std::move(result.value());
+            if (bytes_to_read == 0)
+                break;
+
+            if (auto result = read_memory(entry.addr, bytes_to_read)) {
+                entry.data = std::move(*result);
                 entry.valid = true;
                 entry.dereferenced_string = dereference_as_string(entry.data);
             } else {
-                entry.data.resize(entry.type_size);
+                entry.data.resize(bytes_to_read);
                 entry.valid = false;
             }
 

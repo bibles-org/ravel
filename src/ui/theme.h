@@ -32,7 +32,7 @@ namespace theme {
         static constexpr ImVec4 TERMINAL_WHITE = ImVec4(0.753f, 0.792f, 0.961f, 1.0f);
     };
 
-    void apply() {
+    inline void apply() {
         ImGuiStyle& style = ImGui::GetStyle();
         ImVec4* colors = style.Colors;
 
