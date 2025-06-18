@@ -14,7 +14,7 @@
 #include <imgui_internal.h>
 
 namespace ui {
-    enum class memory_type {
+    enum class memory_type : uint8_t {
         int8,
         uint8,
         int16,
@@ -52,8 +52,7 @@ namespace ui {
         bool valid;
 
         memory_entry() :
-            offset(0), addr(0), data_offset(0), data_size(0), type(memory_type::int32), type_size(4),
-            valid(false) {
+            offset(0), addr(0), data_offset(0), data_size(0), type(memory_type::int32), type_size(4), valid(false) {
         }
     };
 
@@ -96,6 +95,8 @@ namespace ui {
         std::optional<std::string> dereference_as_string(std::span<const std::byte> data);
         std::optional<std::string> read_string(std::uintptr_t addr, std::size_t max_len = 64);
 
+        std::span<const std::byte> get_entry_data_span(const memory_entry& entry) const;
+
         template <typename T>
         T bytes_to(std::span<const std::byte> data)
             requires(std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>);
@@ -105,7 +106,5 @@ namespace ui {
         const char* get_type_name(memory_type type);
         void change_entry_type(std::size_t entry_idx, memory_type new_type);
         void rebuild_entries_from_index(std::size_t start_idx);
-
-        std::span<const std::byte> get_entry_data_span(const memory_entry& entry) const; // Added
     };
 } // namespace ui

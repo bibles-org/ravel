@@ -36,7 +36,7 @@ namespace theme {
         ImGuiStyle& style = ImGui::GetStyle();
         ImVec4* colors = style.Colors;
 
-        ImGui::GetIO().FontGlobalScale = 1.3f;
+        ImGui::GetIO().FontGlobalScale = 1.4f;
 
         colors[ImGuiCol_WindowBg] = colors::BG;
         colors[ImGuiCol_ChildBg] = colors::BG_DARK;
