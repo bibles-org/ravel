@@ -44,13 +44,16 @@ namespace ui {
     struct memory_entry {
         std::size_t offset;
         std::uintptr_t addr;
-        std::vector<std::byte> data;
+        std::size_t data_offset;
+        std::size_t data_size;
         std::optional<std::string> dereferenced_string;
         memory_type type;
         std::size_t type_size;
         bool valid;
 
-        memory_entry() : offset(0), addr(0), type(memory_type::int32), type_size(4), valid(false) {
+        memory_entry() :
+            offset(0), addr(0), data_offset(0), data_size(0), type(memory_type::int32), type_size(4),
+            valid(false) {
         }
     };
 
@@ -63,6 +66,8 @@ namespace ui {
         std::vector<std::unique_ptr<memory_class>> classes;
         std::optional<std::size_t> selected_idx;
         std::vector<memory_entry> entries;
+        std::vector<std::byte> memory_buffer;
+        bool m_buffer_read_success;
 
         char new_class_name[256];
         char addr_input[32];
@@ -100,5 +105,7 @@ namespace ui {
         const char* get_type_name(memory_type type);
         void change_entry_type(std::size_t entry_idx, memory_type new_type);
         void rebuild_entries_from_index(std::size_t start_idx);
+
+        std::span<const std::byte> get_entry_data_span(const memory_entry& entry) const; // Added
     };
 } // namespace ui

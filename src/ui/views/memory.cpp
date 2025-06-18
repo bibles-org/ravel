@@ -1,13 +1,16 @@
 #include <algorithm>
 #include <app/ctx.h>
 #include <cstring>
+#include <format>
 #include <numeric>
 #include <ranges>
-#include <ui/views/memory.h>
 #include <ui/theme.h>
+#include <ui/views/memory.h>
+
 
 namespace ui {
-    memory_view::memory_view() : view("Memory"), show_add_popup(false), auto_refresh(false), refresh_rate(1.0f) {
+    memory_view::memory_view() :
+        view("Memory"), m_buffer_read_success(false), show_add_popup(false), auto_refresh(false), refresh_rate(1.0f) {
         std::memset(new_class_name, 0, sizeof(new_class_name));
         std::memset(addr_input, 0, sizeof(addr_input));
         add_class("Default Class");
@@ -238,6 +241,16 @@ namespace ui {
         render_memory_table();
     }
 
+    std::span<const std::byte> memory_view::get_entry_data_span(const memory_entry& entry) const {
+        if (!m_buffer_read_success || entry.data_offset >= memory_buffer.size() || entry.data_size == 0) {
+            return {};
+        }
+        std::size_t actual_size = std::min(entry.data_size, memory_buffer.size() - entry.data_offset);
+        if (actual_size == 0 && entry.type_size > 0)
+            return {};
+        return {memory_buffer.data() + entry.data_offset, actual_size};
+    }
+
     void memory_view::render_memory_table() {
         if (!app::proc || !app::proc->is_attached()) {
             ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
@@ -248,7 +261,11 @@ namespace ui {
 
         if (entries.empty()) {
             ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::ORANGE);
-            ImGui::Text("No memory data available - set an address to begin");
+            if (!m_buffer_read_success && selected_idx.has_value() && classes[*selected_idx]->addr != 0) {
+                ImGui::Text("Failed to read memory data");
+            } else {
+                ImGui::Text("Set an address to begin");
+            }
             ImGui::PopStyleColor();
             return;
         }
@@ -284,7 +301,7 @@ namespace ui {
                 if (entry.valid) {
                     ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
                     ImGui::PushStyleColor(ImGuiCol_Text, theme::get_bytes_color());
-                    ImGui::Text("%s", format_hex(entry.data).c_str());
+                    ImGui::Text("%s", format_hex(get_entry_data_span(entry)).c_str());
                     ImGui::PopStyleColor();
                     ImGui::PopFont();
                 } else {
@@ -350,7 +367,7 @@ namespace ui {
                 if (entry.valid) {
                     ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
                     ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::GREEN);
-                    std::string ascii_repr = format_ascii(entry.data);
+                    std::string ascii_repr = format_ascii(get_entry_data_span(entry));
                     ImGui::Text("'%s'", ascii_repr.c_str());
                     ImGui::PopStyleColor();
                     ImGui::PopFont();
@@ -418,6 +435,9 @@ namespace ui {
         if (selected_idx.has_value()) {
             if (*selected_idx == index) {
                 selected_idx.reset();
+                entries.clear();
+                memory_buffer.clear();
+                m_buffer_read_success = false;
             } else if (*selected_idx > index) {
                 --(*selected_idx);
             }
@@ -425,43 +445,71 @@ namespace ui {
     }
 
     void memory_view::refresh_data() {
-        if (!selected_idx.has_value())
+        entries.clear();
+        memory_buffer.clear();
+        m_buffer_read_success = false;
+
+        if (!selected_idx.has_value()) {
             return;
+        }
 
         const auto& selected_class = classes[*selected_idx];
-        if (selected_class->addr == 0)
+        if (selected_class->addr == 0 || selected_class->size == 0) {
             return;
+        }
 
-        entries.clear();
+        auto read_result = read_memory(selected_class->addr, selected_class->size);
+        if (read_result.has_value()) {
+            memory_buffer = std::move(read_result.value());
+            m_buffer_read_success = true;
+        } else {
+            // memory_buffer remains empty, m_buffer_read_success is false
+        }
 
-        std::uintptr_t current_addr = selected_class->addr;
-        std::size_t bytes_processed = 0;
+        std::uintptr_t current_addr_base = selected_class->addr;
+        std::size_t class_processed_bytes = 0;
 
-        while (bytes_processed < selected_class->size) {
+        while (class_processed_bytes < selected_class->size) {
             memory_entry entry;
-            entry.offset = bytes_processed;
-            entry.addr = current_addr;
+            entry.offset = class_processed_bytes;
+            entry.addr = current_addr_base + class_processed_bytes;
             entry.type = memory_type::int32;
             entry.type_size = get_type_size(entry.type);
 
-            std::size_t bytes_to_read = std::min(entry.type_size, selected_class->size - bytes_processed);
+            entry.data_offset = class_processed_bytes;
 
-            auto result = read_memory(entry.addr, bytes_to_read);
-            if (result.has_value()) {
-                entry.data = std::move(result.value());
-                entry.valid = true;
-                entry.dereferenced_string = dereference_as_string(entry.data);
-            } else {
-                entry.data.resize(entry.type_size);
+            std::size_t remaining_in_class_logical = selected_class->size - class_processed_bytes;
+            std::size_t actual_buffer_available =
+                    m_buffer_read_success
+                            ? (memory_buffer.size() > entry.data_offset ? memory_buffer.size() - entry.data_offset : 0)
+                            : 0;
+
+            entry.data_size = std::min({entry.type_size, remaining_in_class_logical, actual_buffer_available});
+
+            entry.valid = m_buffer_read_success && (entry.data_offset < memory_buffer.size()) &&
+                          (entry.data_offset + entry.data_size <= memory_buffer.size());
+            if (entry.type_size > 0 && entry.data_size == 0) {
                 entry.valid = false;
+            }
+            if (!m_buffer_read_success && class_processed_bytes < selected_class->size) {
+                entry.valid = false;
+            }
+
+
+            if (entry.valid) {
+                entry.dereferenced_string = dereference_as_string(get_entry_data_span(entry));
+            } else {
+                entry.dereferenced_string = std::nullopt;
             }
 
             entries.emplace_back(std::move(entry));
 
-            current_addr += entry.type_size;
-            bytes_processed += entry.type_size;
+            class_processed_bytes += entry.type_size;
+            if (entry.type_size == 0)
+                break;
         }
     }
+
 
     std::expected<std::uintptr_t, bool> memory_view::parse_address_input(std::string_view input) {
         if (input.empty()) {
@@ -521,13 +569,21 @@ namespace ui {
             return std::nullopt;
         }
 
-        auto potential_addr = bytes_to<std::uint32_t>(data);
+        std::uintptr_t potential_addr = 0;
 
-        if (!is_valid_addr(static_cast<std::uintptr_t>(potential_addr))) {
+        if (data.size() >= sizeof(std::uintptr_t)) {
+            potential_addr = bytes_to<std::uintptr_t>(data.first(sizeof(std::uintptr_t)));
+        } else if (data.size() >= sizeof(std::uint32_t)) {
+            potential_addr = static_cast<std::uintptr_t>(bytes_to<std::uint32_t>(data.first(sizeof(std::uint32_t))));
+        } else {
             return std::nullopt;
         }
 
-        return read_string(static_cast<std::uintptr_t>(potential_addr));
+        if (!is_valid_addr(potential_addr)) {
+            return std::nullopt;
+        }
+
+        return read_string(potential_addr);
     }
 
     std::optional<std::string> memory_view::read_string(std::uintptr_t addr, std::size_t max_len) {
@@ -535,53 +591,57 @@ namespace ui {
             return std::nullopt;
         }
 
-        std::string result;
+        std::string result_str;
         bool success = false;
 
-        result.resize_and_overwrite(max_len, [&](char* data, std::size_t size) -> std::size_t {
-            auto read_op = app::proc->read_memory(addr, std::as_writable_bytes(std::span(data, size)));
+        result_str.resize_and_overwrite(max_len, [&](char* data, std::size_t requested_size) -> std::size_t {
+            auto read_op = app::proc->read_memory(addr, std::as_writable_bytes(std::span(data, requested_size)));
             if (!read_op) {
+                success = false;
                 return 0;
             }
             success = true;
-            return max_len;
+            auto null_terminator_in_buffer = std::find(data, data + requested_size, '\0');
+            return static_cast<std::size_t>(std::distance(data, null_terminator_in_buffer));
         });
 
         if (!success) {
             return std::nullopt;
         }
 
-        auto null_terminator = std::find(result.begin(), result.end(), '\0');
-        if (null_terminator == result.end()) {
-            return std::nullopt;
+        if (result_str.empty() && max_len > 0) {
+            // if read was successful but string is empty
         }
 
-        result.erase(null_terminator, result.end());
-
-        if (!std::ranges::all_of(result, [](char c) {
+        if (!std::ranges::all_of(result_str, [](char c) {
                 return std::isprint(static_cast<unsigned char>(c));
             })) {
             return std::nullopt;
         }
 
-        return result;
+        return result_str;
     }
 
     std::expected<std::vector<std::byte>, bool> memory_view::read_memory(std::uintptr_t addr, std::size_t size) {
         if (!app::proc || !app::proc->is_attached()) {
             return std::unexpected(false);
         }
+        if (size == 0) {
+            return std::vector<std::byte>();
+        }
 
         std::vector<std::byte> buffer(size);
-        auto result = app::proc->read_memory(addr, std::span<std::byte>(buffer));
+        auto operation_result = app::proc->read_memory(addr, std::span<std::byte>(buffer));
 
-        if (result.has_value()) {
+        if (operation_result.has_value()) {
             return buffer;
         }
         return std::unexpected(false);
     }
 
     std::string memory_view::format_hex(std::span<const std::byte> data) {
+        if (data.empty())
+            return "";
         return std::ranges::fold_left(
                 data | std::ranges::views::transform([](std::byte b) {
                     return std::format("{:02X}", std::to_integer<unsigned int>(b));
@@ -596,70 +656,73 @@ namespace ui {
     }
 
     std::string memory_view::format_typed_value(const memory_entry& entry) {
-        if (!entry.valid || entry.data.empty()) {
+        std::span<const std::byte> data_span = get_entry_data_span(entry);
+        if (!entry.valid || data_span.empty()) {
             return "invalid";
         }
 
         switch (entry.type) {
             case memory_type::int8:
-                if (entry.data.size() >= 1) {
-                    return std::format("{}", bytes_to<std::int8_t>(entry.data));
+                if (data_span.size() >= 1) {
+                    return std::format("{}", bytes_to<std::int8_t>(data_span));
                 }
                 break;
             case memory_type::uint8:
-                if (entry.data.size() >= 1) {
-                    return std::format("{}", bytes_to<std::uint8_t>(entry.data));
+                if (data_span.size() >= 1) {
+                    return std::format("{}", bytes_to<std::uint8_t>(data_span));
                 }
                 break;
             case memory_type::int16:
-                if (entry.data.size() >= 2) {
-                    return std::format("{}", bytes_to<std::int16_t>(entry.data));
+                if (data_span.size() >= 2) {
+                    return std::format("{}", bytes_to<std::int16_t>(data_span));
                 }
                 break;
             case memory_type::uint16:
-                if (entry.data.size() >= 2) {
-                    return std::format("{}", bytes_to<std::uint16_t>(entry.data));
+                if (data_span.size() >= 2) {
+                    return std::format("{}", bytes_to<std::uint16_t>(data_span));
                 }
                 break;
             case memory_type::int32:
-                if (entry.data.size() >= 4) {
-                    return std::format("{}", bytes_to<std::int32_t>(entry.data));
+                if (data_span.size() >= 4) {
+                    return std::format("{}", bytes_to<std::int32_t>(data_span));
                 }
                 break;
             case memory_type::uint32:
-                if (entry.data.size() >= 4) {
-                    return std::format("{}", bytes_to<std::uint32_t>(entry.data));
+                if (data_span.size() >= 4) {
+                    return std::format("{}", bytes_to<std::uint32_t>(data_span));
                 }
                 break;
             case memory_type::int64:
-                if (entry.data.size() >= 8) {
-                    return std::format("{}", bytes_to<std::int64_t>(entry.data));
+                if (data_span.size() >= 8) {
+                    return std::format("{}", bytes_to<std::int64_t>(data_span));
                 }
                 break;
             case memory_type::uint64:
-                if (entry.data.size() >= 8) {
-                    return std::format("{}", bytes_to<std::uint64_t>(entry.data));
+                if (data_span.size() >= 8) {
+                    return std::format("{}", bytes_to<std::uint64_t>(data_span));
                 }
                 break;
             case memory_type::float32:
-                if (entry.data.size() >= 4) {
-                    return std::format("{:.6f}", bytes_to<float>(entry.data));
+                if (data_span.size() >= 4) {
+                    return std::format("{:.6f}", bytes_to<float>(data_span));
                 }
                 break;
             case memory_type::float64:
-                if (entry.data.size() >= 8) {
-                    return std::format("{:.6f}", bytes_to<double>(entry.data));
+                if (data_span.size() >= 8) {
+                    return std::format("{:.6f}", bytes_to<double>(data_span));
                 }
                 break;
             case memory_type::pointer:
-                if (entry.data.size() >= sizeof(std::uintptr_t)) {
-                    return std::format("0x{:X}", bytes_to<std::uintptr_t>(entry.data));
+                if (data_span.size() >= sizeof(std::uintptr_t)) {
+                    return std::format("0x{:X}", bytes_to<std::uintptr_t>(data_span));
+                } else if (data_span.size() >= sizeof(std::uint32_t)) {
+                    return std::format("0x{:X}", static_cast<std::uintptr_t>(bytes_to<std::uint32_t>(data_span)));
                 }
                 break;
             case memory_type::text:
-                return format_ascii(entry.data);
+                return format_ascii(data_span);
             case memory_type::bytes:
-                return format_hex(entry.data);
+                return format_hex(data_span);
         }
 
         return "invalid";
@@ -735,79 +798,112 @@ namespace ui {
     }
 
     void memory_view::change_entry_type(std::size_t entry_idx, memory_type new_type) {
-        if (entry_idx >= entries.size()) {
+        if (entry_idx >= entries.size() || !selected_idx.has_value()) {
             return;
         }
 
-        entries[entry_idx].type = new_type;
-        entries[entry_idx].type_size = get_type_size(new_type);
+        const auto& selected_class = classes[*selected_idx];
+        memory_entry& current_entry = entries[entry_idx];
 
-        auto result = read_memory(entries[entry_idx].addr, entries[entry_idx].type_size);
-        if (result.has_value()) {
-            entries[entry_idx].data = std::move(result.value());
-            entries[entry_idx].valid = true;
-            entries[entry_idx].dereferenced_string = dereference_as_string(entries[entry_idx].data);
+        current_entry.type = new_type;
+        current_entry.type_size = get_type_size(new_type);
+
+        std::size_t remaining_in_class_logical = selected_class->size - current_entry.offset;
+        std::size_t actual_buffer_available =
+                (m_buffer_read_success && current_entry.data_offset < memory_buffer.size())
+                        ? (memory_buffer.size() - current_entry.data_offset)
+                        : 0;
+
+        current_entry.data_size =
+                std::min({current_entry.type_size, remaining_in_class_logical, actual_buffer_available});
+
+        current_entry.valid = m_buffer_read_success && (current_entry.data_offset < memory_buffer.size()) &&
+                              (current_entry.data_offset + current_entry.data_size <= memory_buffer.size());
+        if (current_entry.type_size > 0 && current_entry.data_size == 0) {
+            current_entry.valid = false;
+        }
+        if (!m_buffer_read_success && current_entry.offset < selected_class->size) {
+            current_entry.valid = false;
+        }
+
+        if (current_entry.valid) {
+            current_entry.dereferenced_string = dereference_as_string(get_entry_data_span(current_entry));
         } else {
-            entries[entry_idx].data.resize(entries[entry_idx].type_size);
-            entries[entry_idx].valid = false;
+            current_entry.dereferenced_string = std::nullopt;
         }
 
         rebuild_entries_from_index(entry_idx + 1);
     }
 
     void memory_view::rebuild_entries_from_index(std::size_t start_idx) {
-        if (!selected_idx || start_idx > entries.size())
+        if (!selected_idx.has_value() || start_idx > entries.size())
             return;
 
         const auto& selected_class = classes[*selected_idx];
-        std::size_t bytes_processed = std::accumulate(
-                entries.begin(), entries.begin() + static_cast<ptrdiff_t>(start_idx), 0ULL,
-                [](std::size_t sum, const memory_entry& e) {
-                    return sum + e.type_size;
-                }
-        );
+
+        std::size_t class_processed_bytes = 0;
+        std::uintptr_t current_addr_base = selected_class->addr;
+
+        if (start_idx > 0 && start_idx <= entries.size()) {
+            class_processed_bytes = std::accumulate(
+                    entries.begin(), entries.begin() + static_cast<ptrdiff_t>(start_idx), 0ULL,
+                    [](std::size_t sum, const memory_entry& e) {
+                        return sum + e.type_size;
+                    }
+            );
+        } else if (start_idx > entries.size()) {
+            return;
+        }
 
         entries.erase(entries.begin() + static_cast<ptrdiff_t>(start_idx), entries.end());
 
-        std::uintptr_t current_addr = selected_class->addr + bytes_processed;
-        const auto default_type = [&]() -> memory_type {
-            if (start_idx > 0 && start_idx <= entries.size())
-                return entries[start_idx - 1].type;
-            return memory_type::int32;
-        }();
+        const auto default_type =
+                (start_idx > 0 && !entries.empty()) ? entries[start_idx - 1].type : memory_type::int32;
 
-        while (bytes_processed < selected_class->size) {
+        while (class_processed_bytes < selected_class->size) {
             memory_entry entry;
-            entry.offset = bytes_processed;
-            entry.addr = current_addr;
+            entry.offset = class_processed_bytes;
+            entry.addr = current_addr_base + class_processed_bytes;
             entry.type = default_type;
-
             entry.type_size = get_type_size(entry.type);
-            std::size_t bytes_to_read = std::min(entry.type_size, selected_class->size - bytes_processed);
-            if (bytes_to_read == 0 && selected_class->size > bytes_processed)
-                bytes_to_read = entry.type_size;
 
-            if (bytes_to_read == 0)
-                break;
+            entry.data_offset = class_processed_bytes;
 
-            if (auto result = read_memory(entry.addr, bytes_to_read)) {
-                entry.data = std::move(*result);
-                entry.valid = true;
-                entry.dereferenced_string = dereference_as_string(entry.data);
-            } else {
-                entry.data.resize(bytes_to_read);
+            std::size_t remaining_in_class_logical = selected_class->size - class_processed_bytes;
+            std::size_t actual_buffer_available = (m_buffer_read_success && entry.data_offset < memory_buffer.size())
+                                                          ? (memory_buffer.size() - entry.data_offset)
+                                                          : 0;
+
+            entry.data_size = std::min({entry.type_size, remaining_in_class_logical, actual_buffer_available});
+
+            entry.valid = m_buffer_read_success && (entry.data_offset < memory_buffer.size()) &&
+                          (entry.data_offset + entry.data_size <= memory_buffer.size());
+            if (entry.type_size > 0 && entry.data_size == 0) {
                 entry.valid = false;
+            }
+            if (!m_buffer_read_success && class_processed_bytes < selected_class->size) {
+                entry.valid = false;
+            }
+
+            if (entry.data_size == 0 && class_processed_bytes < selected_class->size && entry.type_size > 0) {
+                break;
+            }
+
+            if (entry.valid) {
+                entry.dereferenced_string = dereference_as_string(get_entry_data_span(entry));
+            } else {
+                entry.dereferenced_string = std::nullopt;
             }
 
             entries.emplace_back(std::move(entry));
 
-            current_addr += entry.type_size;
-            bytes_processed += entry.type_size;
+            class_processed_bytes += entry.type_size;
+            if (entry.type_size == 0)
+                break;
         }
     }
 
     bool memory_view::is_valid_addr(std::uintptr_t addr) {
-        // todo: proper address validation from pantsir
         return addr != 0;
     }
 } // namespace ui
