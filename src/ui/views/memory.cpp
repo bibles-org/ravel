@@ -106,7 +106,7 @@ namespace ui {
             if (cls->addr != 0) {
                 ImGui::Indent(15.0f);
                 ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
-                ImGui::Text("0x%016lX", cls->addr);
+                ImGui::TextUnformatted(std::format("0x{:016X}", cls->addr).c_str());
                 ImGui::Text("%zu bytes", cls->size);
                 ImGui::PopStyleColor();
                 ImGui::Unindent(15.0f);
@@ -290,11 +290,10 @@ namespace ui {
                 ImGui::PushID(static_cast<int>(i));
 
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("+0x%04lX", entry.offset);
-
+                ImGui::TextUnformatted(std::format("+0x{:04X}", entry.offset).c_str());
                 ImGui::TableSetColumnIndex(1);
                 ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::CYAN);
-                ImGui::Text("0x%08lX", static_cast<unsigned long>(entry.addr));
+                ImGui::TextUnformatted(std::format("0x{:08X}", entry.addr).c_str());
                 ImGui::PopStyleColor();
 
                 ImGui::TableSetColumnIndex(2);

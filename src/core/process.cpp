@@ -2,6 +2,8 @@
 
 #if defined(__linux__)
 #include <platform/linux_controller.h>
+#elif defined(_WIN32)
+#include <platform/windows_controller.h>
 #else
 #error "unsupported platform"
 #endif
@@ -11,6 +13,8 @@ namespace core {
     process::process() {
 #if defined(__linux__)
         m_controller = std::make_unique<platform::linux_controller>();
+#elif defined(_WIN32)
+        m_controller = std::make_unique<platform::windows_controller>();
 #endif
     }
 

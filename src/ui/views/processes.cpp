@@ -48,7 +48,8 @@ namespace ui {
             for (std::size_t i = 0; i < m_processes.size(); ++i) {
                 const auto& process = m_processes[i];
 
-                if (!filter.PassFilter(process.name.c_str()) && !filter.PassFilter(process.executable_path.c_str())) {
+                if (!filter.PassFilter(process.name.c_str()) &&
+                    !filter.PassFilter(process.executable_path.u8string().c_str())) {
                     continue;
                 }
 
@@ -66,7 +67,7 @@ namespace ui {
                 ImGui::TextUnformatted(process.name.c_str());
 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::TextUnformatted(process.executable_path.c_str());
+                ImGui::TextUnformatted(process.executable_path.u8string().c_str());
             }
 
             ImGui::EndTable();

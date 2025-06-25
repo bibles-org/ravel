@@ -11,7 +11,6 @@ find_package(OpenGL REQUIRED)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-
 add_subdirectory(vendor/glfw)
 
 add_library(imgui STATIC)
@@ -31,13 +30,23 @@ target_link_libraries(imgui PUBLIC
   OpenGL::GL
 )
 
+if(WIN32)
+    set(PLATFORM_SOURCES src/platform/windows_controller.cpp)
+    set(PLATFORM_LIBRARIES psapi)
+elseif(UNIX AND NOT APPLE)
+    set(PLATFORM_SOURCES src/platform/linux_controller.cpp)
+    set(PLATFORM_LIBRARIES)
+else()
+    message(FATAL_ERROR "Unsupported platform.")
+endif()
+
+
 add_executable(${PROJECT_NAME}
   src/main.cpp
-
   src/app/application.cpp
-
   src/core/process.cpp
-  src/platform/linux_controller.cpp
+
+  ${PLATFORM_SOURCES}
 
   src/ui/views/processes.cpp
   src/ui/views/memory.cpp
@@ -45,26 +54,35 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
   src
-
   vendor
   vendor/imgui/backends
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   imgui
+  ${PLATFORM_LIBRARIES}
+  stdc++exp
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-  -Wall
-  -Wextra
-  -Wpedantic
-  -Wshadow
-  -Wconversion
-  -Wsign-conversion
-  -Wpointer-arith
-  -Wstrict-overflow=5
-  -Wnull-dereference
-  -Wformat=2
-  -Wcast-align
-  -Wstrict-aliasing=2
-)
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+      /W4
+      /permissive-
+    )
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+      -Wall
+      -Wextra
+      -Wpedantic
+      -Wshadow
+      -Wconversion
+      -Wsign-conversion
+      -Wpointer-arith
+      -Wstrict-overflow=5
+      -Wnull-dereference
+      -Wformat=2
+      -Wcast-align
+      -Wstrict-aliasing=2
+      -fno-char8_t
+    )
+endif()
