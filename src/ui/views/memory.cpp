@@ -326,10 +326,8 @@ namespace ui {
                         ImGui::OpenPopup(popup_id);
                     }
 
-                    if (ImGui::BeginPopupContextItem(popup_id)) {
-                        if (!ImGui::IsPopupOpen(popup_id)) {
-                            ImGui::OpenPopup(popup_id);
-                        }
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                        ImGui::OpenPopup(popup_id);
                     }
 
                     if (ImGui::BeginPopup(popup_id)) {
