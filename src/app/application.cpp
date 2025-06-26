@@ -7,6 +7,7 @@
 
 #include "ui/theme.h"
 #include "ui/view.h"
+#include "ui/views/disassembly.h"
 #include "ui/views/memory.h"
 #include "ui/views/processes.h"
 
@@ -63,6 +64,7 @@ namespace app {
 
         m_views.push_back(std::make_unique<ui::processes_view>());
         m_views.push_back(std::make_unique<ui::memory_view>());
+        m_views.push_back(std::make_unique<ui::disassembly_view>());
     }
 
     application::~application() {
@@ -118,7 +120,8 @@ namespace app {
         ImGui::SetNextWindowViewport(viewport->ID);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_NoMove;
         window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
         if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)

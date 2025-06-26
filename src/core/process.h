@@ -41,6 +41,7 @@ namespace core {
 
         void detach();
         [[nodiscard]] bool is_attached() const;
+        [[nodiscard]] std::uint32_t get_attached_pid() const;
 
     private:
         std::unique_ptr<platform::process_controller> m_controller;

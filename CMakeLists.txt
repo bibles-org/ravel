@@ -40,6 +40,7 @@ else()
     message(FATAL_ERROR "Unsupported platform.")
 endif()
 
+add_subdirectory(vendor/zydis-bridge)
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
@@ -50,6 +51,7 @@ add_executable(${PROJECT_NAME}
 
   src/ui/views/processes.cpp
   src/ui/views/memory.cpp
+  src/ui/views/disassembly.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -60,6 +62,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   imgui
+  zydis-bridge
   ${PLATFORM_LIBRARIES}
   stdc++exp
 )
@@ -83,6 +86,6 @@ else()
       -Wformat=2
       -Wcast-align
       -Wstrict-aliasing=2
-      -fno-char8_t
+      # -fno-char8_t
     )
 endif()

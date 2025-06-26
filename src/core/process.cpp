@@ -45,6 +45,10 @@ namespace core {
         return m_attached_pid != 0;
     }
 
+    std::uint32_t process::get_attached_pid() const {
+        return m_attached_pid;
+    }
+
     std::expected<std::vector<memory_region>, error_code> process::get_memory_regions() {
         if (!is_attached()) {
             return std::unexpected(error_code::process_not_found);
