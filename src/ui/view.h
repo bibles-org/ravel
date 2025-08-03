@@ -12,14 +12,6 @@ namespace ui {
             return m_title;
         }
 
-        [[nodiscard]] bool is_visible() const {
-            return m_is_visible;
-        }
-
-        bool* get_visibility_flag() {
-            return &m_is_visible;
-        }
-
         virtual void render() = 0;
 
     protected:
@@ -33,6 +25,5 @@ namespace ui {
 
     private:
         std::string m_title;
-        bool m_is_visible = true;
     };
 } // namespace ui

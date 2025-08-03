@@ -17,36 +17,29 @@ namespace ui {
     }
 
     void memory_view::render() {
-        ImGui::Columns(2, "MemoryViewerColumns", true);
+        const float sidebar_width = 240.0f;
 
-        static bool first_time = true;
-        if (first_time) {
-            ImGui::SetColumnWidth(0, 280.0f);
-            first_time = false;
-        }
-
+        ImGui::BeginChild("Sidebar", ImVec2(sidebar_width, 0), true);
         render_sidebar();
-        ImGui::NextColumn();
+        ImGui::EndChild();
+
+        ImGui::SameLine();
+
+        ImGui::BeginChild("Content", ImVec2(0, 0), true);
         render_memory_view();
-        ImGui::Columns(1);
+        ImGui::EndChild();
 
         render_add_popup();
     }
 
     void memory_view::render_sidebar() {
-        ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG);
         ImGui::Text("Memory Classes");
-        ImGui::PopStyleColor();
-
         ImGui::Separator();
-        ImGui::Spacing();
 
-        if (ImGui::Button("+ Add New Class", ImVec2(-1, 30))) {
+        if (ImGui::Button("+ Add Class", ImVec2(-1, 0))) {
             show_add_popup = true;
         }
-        ImGui::Spacing();
         ImGui::Separator();
-        ImGui::Spacing();
 
         render_class_list();
     }
@@ -59,17 +52,13 @@ namespace ui {
             bool is_selected = (selected_idx == i);
 
             if (is_selected) {
-                ImGui::PushStyleColor(ImGuiCol_Header, theme::with_alpha(theme::colors::BLUE, 0.8f));
-                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::with_alpha(theme::colors::BLUE, 0.9f));
+                ImGui::PushStyleColor(ImGuiCol_Header, theme::with_alpha(theme::colors::BLUE, 0.4f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::with_alpha(theme::colors::BLUE, 0.6f));
             }
 
-            if (ImGui::Selectable(cls->name.c_str(), is_selected, 0, ImVec2(0, 25))) {
+            if (ImGui::Selectable(cls->name.c_str(), is_selected, 0, ImVec2(0, 45))) {
                 selected_idx = i;
                 refresh_data();
-            }
-
-            if (is_selected) {
-                ImGui::PopStyleColor(2);
             }
 
             if (ImGui::BeginPopupContextItem()) {
@@ -84,6 +73,7 @@ namespace ui {
                 }
 
                 if (ImGui::MenuItem("Rename Class")) {
+                    // TODO: Implement rename functionality
                 }
 
                 ImGui::Separator();
@@ -103,22 +93,27 @@ namespace ui {
                 ImGui::EndPopup();
             }
 
-            if (cls->addr != 0) {
-                ImGui::Indent(15.0f);
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
-                ImGui::TextUnformatted(std::format("0x{:016X}", cls->addr).c_str());
-                ImGui::Text("%zu bytes", cls->size);
-                ImGui::PopStyleColor();
-                ImGui::Unindent(15.0f);
-            } else {
-                ImGui::Indent(15.0f);
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
-                ImGui::Text("No address set");
-                ImGui::PopStyleColor();
-                ImGui::Unindent(15.0f);
+            if (is_selected) {
+                ImGui::PopStyleColor(2);
             }
 
-            ImGui::Spacing();
+            ImVec2 last_item_min = ImGui::GetItemRectMin();
+            ImVec2 original_cursor_pos = ImGui::GetCursorPos();
+
+            ImGui::SetCursorScreenPos(ImVec2(last_item_min.x + 10.0f, last_item_min.y + 22.0f));
+
+            if (cls->addr != 0) {
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+                ImGui::TextUnformatted(std::format("0x{:016X}", cls->addr).c_str());
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
+                ImGui::TextUnformatted("No address set");
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::SetCursorPos(original_cursor_pos);
+
             ImGui::PopID();
         }
     }
@@ -140,9 +135,7 @@ namespace ui {
             ImGui::Separator();
             ImGui::Spacing();
 
-            ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::GREEN);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::GREEN, 0.9f));
-            if (ImGui::Button("Create", ImVec2(120, 30))) {
+            if (ImGui::Button("Create", ImVec2(120, 0))) {
                 if (std::strlen(new_class_name) > 0) {
                     add_class(std::string_view(new_class_name));
                     std::memset(new_class_name, 0, sizeof(new_class_name));
@@ -150,17 +143,13 @@ namespace ui {
                 show_add_popup = false;
                 ImGui::CloseCurrentPopup();
             }
-            ImGui::PopStyleColor(2);
 
             ImGui::SameLine();
 
-            ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::RED);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::RED, 0.9f));
-            if (ImGui::Button("Cancel", ImVec2(120, 30))) {
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 show_add_popup = false;
                 ImGui::CloseCurrentPopup();
             }
-            ImGui::PopStyleColor(2);
 
             ImGui::EndPopup();
         }
@@ -183,19 +172,13 @@ namespace ui {
 
         auto& selected_class = classes[*selected_idx];
 
-        ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG);
         ImGui::Text("Memory Inspector - %s", selected_class->name.c_str());
-        ImGui::PopStyleColor();
         ImGui::Separator();
-        ImGui::Spacing();
 
-        ImGui::Text("Memory Address:");
-        ImGui::SameLine();
         ImGui::SetNextItemWidth(220);
-
-        if (ImGui::InputText(
-                    "##address", addr_input, sizeof(addr_input), ImGuiInputTextFlags_CallbackCharFilter,
-                    [](ImGuiInputTextCallbackData* data) -> int {
+        if (ImGui::InputTextWithHint(
+                    "##address", "Address (e.g., 0xDEADBEEF)", addr_input, sizeof(addr_input),
+                    ImGuiInputTextFlags_CallbackCharFilter, [](ImGuiInputTextCallbackData* data) -> int {
                         const char c = static_cast<char>(data->EventChar);
                         if (std::isxdigit(static_cast<unsigned char>(c)) || c == 'x' || c == 'X' || c == '[' ||
                             c == ']' || c == '+' || c == '-' || std::isspace(static_cast<unsigned char>(c))) {
@@ -211,12 +194,9 @@ namespace ui {
         }
 
         ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::colors::BLUE);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::with_alpha(theme::colors::BLUE, 0.9f));
         if (ImGui::Button("Refresh")) {
             refresh_data();
         }
-        ImGui::PopStyleColor(2);
 
         ImGui::SameLine();
         ImGui::Checkbox("Auto-refresh", &auto_refresh);
@@ -233,10 +213,7 @@ namespace ui {
                 last_refresh = now;
             }
         }
-
-        ImGui::Spacing();
         ImGui::Separator();
-        ImGui::Spacing();
 
         render_memory_table();
     }
@@ -270,11 +247,9 @@ namespace ui {
             return;
         }
 
-        if (ImGui::BeginTable(
-                    "MemoryTable", 6,
-                    ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
-                            ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable
-            )) {
+        const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
+                                      ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV;
+        if (ImGui::BeginTable("MemoryTable", 6, flags)) {
 
             ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 130.0f);

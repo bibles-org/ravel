@@ -22,59 +22,56 @@ namespace ui {
         if (ImGui::Button("Refresh Regions")) {
             refresh_executable_regions();
         }
+        ImGui::SameLine();
 
-        if (m_executable_regions.empty()) {
-            ImGui::SameLine();
-            ImGui::TextDisabled("(No executable regions found or process not attached)");
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        std::string combo_preview_str;
+        if (!m_selected_region_index.has_value()) {
+            combo_preview_str = "Select an executable region...";
         } else {
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(450);
+            const auto& region = m_executable_regions[*m_selected_region_index];
+            combo_preview_str = std::format(
+                    "{} (0x{:X} - 0x{:X})", region.name, region.base_address, region.base_address + region.size
+            );
+        }
 
-            std::string combo_preview_str;
-            if (!m_selected_region_index.has_value()) {
-                combo_preview_str = "Select an executable region";
-            } else {
-                const auto& region = m_executable_regions[*m_selected_region_index];
-                combo_preview_str = std::format(
-                        "{} (0x{:X} - 0x{:X})", region.name, region.base_address, region.base_address + region.size
+        if (ImGui::BeginCombo("##region_combo", combo_preview_str.c_str())) {
+            for (std::size_t i = 0; i < m_executable_regions.size(); ++i) {
+                const bool is_selected = m_selected_region_index.has_value() && (*m_selected_region_index == i);
+                std::string item_text = std::format(
+                        "{} (0x{:X} - 0x{:X})", m_executable_regions[i].name, m_executable_regions[i].base_address,
+                        m_executable_regions[i].base_address + m_executable_regions[i].size
                 );
-            }
 
-            if (ImGui::BeginCombo("##region_combo", combo_preview_str.c_str())) {
-                for (std::size_t i = 0; i < m_executable_regions.size(); ++i) {
-                    const bool is_selected = m_selected_region_index.has_value() && (*m_selected_region_index == i);
-                    std::string item_text = std::format(
-                            "{} (0x{:X} - 0x{:X})", m_executable_regions[i].name, m_executable_regions[i].base_address,
-                            m_executable_regions[i].base_address + m_executable_regions[i].size
-                    );
-
-                    if (ImGui::Selectable(item_text.c_str(), is_selected)) {
-                        if (!m_selected_region_index.has_value() || *m_selected_region_index != i) {
-                            select_region(i);
-                        }
-                    }
-                    if (is_selected) {
-                        ImGui::SetItemDefaultFocus();
+                if (ImGui::Selectable(item_text.c_str(), is_selected)) {
+                    if (!m_selected_region_index.has_value() || *m_selected_region_index != i) {
+                        select_region(i);
                     }
                 }
-                ImGui::EndCombo();
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
             }
+            ImGui::EndCombo();
         }
 
         ImGui::Separator();
 
+        if (m_executable_regions.empty()) {
+            ImGui::TextDisabled("No executable regions found. Attach to a process and refresh.");
+            return;
+        }
         if (!m_selected_region_index.has_value()) {
-            ImGui::Text("Select an executable memory region to view disassembly");
+            ImGui::TextDisabled("Select an executable memory region to view disassembly.");
             return;
         }
-
         if (m_region_buffer.empty()) {
-            ImGui::TextColored(theme::colors::RED, "Could not read memory for the selected region");
+            ImGui::TextColored(theme::colors::RED, "Could not read memory for the selected region.");
             return;
         }
 
-        const ImGuiTableFlags flags =
-                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
+        const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY |
+                                      ImGuiTableFlags_BordersInnerV;
 
         if (ImGui::BeginTable("disassembly_table", 3, flags)) {
             ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 150.0f);
@@ -85,7 +82,7 @@ namespace ui {
             const auto& region = m_executable_regions[*m_selected_region_index];
 
             ImGuiListClipper clipper;
-            clipper.Begin(static_cast<int>(region.size));
+            clipper.Begin(static_cast<int>(region.size)); // Note: Potentially huge size
 
             while (clipper.Step()) {
                 ensure_display_offsets(clipper.DisplayEnd);
@@ -96,6 +93,9 @@ namespace ui {
                     }
 
                     const std::size_t offset = m_instruction_offsets[static_cast<std::size_t>(row)];
+                    if (offset >= m_region_buffer.size())
+                        continue;
+
                     const std::uint8_t* instruction_ptr =
                             reinterpret_cast<const std::uint8_t*>(m_region_buffer.data() + offset);
 
