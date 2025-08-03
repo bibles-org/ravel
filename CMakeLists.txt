@@ -52,6 +52,10 @@ add_executable(${PROJECT_NAME}
   src/ui/views/processes.cpp
   src/ui/views/memory.cpp
   src/ui/views/disassembly.cpp
+
+  src/cli/dispatcher.cpp
+  src/cli/repl.cpp
+  src/cli/commands.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

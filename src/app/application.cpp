@@ -13,8 +13,6 @@
 #include "ui/views/processes.h"
 
 namespace app {
-    std::unique_ptr<core::process> proc = nullptr;
-
     struct glfw_manager {
         glfw_manager() {
             if (glfwInit())
@@ -60,8 +58,6 @@ namespace app {
             style.WindowRounding = 0.0f;
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
-
-        proc = std::make_unique<core::process>();
 
         m_views.push_back(std::make_unique<ui::processes_view>());
         m_views.push_back(std::make_unique<ui::memory_view>());
