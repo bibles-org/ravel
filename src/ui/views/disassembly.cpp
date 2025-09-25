@@ -1,5 +1,4 @@
 #include <app/ctx.h>
-#include <cinttypes> // For PRIXPTR
 #include <format>
 #include <ranges>
 #include <ui/theme.h>
@@ -82,7 +81,7 @@ namespace ui {
             const auto& region = m_executable_regions[*m_selected_region_index];
 
             ImGuiListClipper clipper;
-            clipper.Begin(static_cast<int>(region.size)); // Note: Potentially huge size
+            clipper.Begin(static_cast<int>(region.size));
 
             while (clipper.Step()) {
                 ensure_display_offsets(clipper.DisplayEnd);
@@ -103,7 +102,9 @@ namespace ui {
 
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::TextColored(theme::get_address_color(), "0x%" PRIXPTR, region.base_address + offset);
+                    ImGui::TextColored(
+                            theme::get_address_color(), std::format("0x{:X}", region.base_address + offset).c_str()
+                    );
 
                     if (!disasm_result) {
                         ImGui::TableSetColumnIndex(1);

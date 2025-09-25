@@ -68,7 +68,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   imgui
   zydis-bridge
   ${PLATFORM_LIBRARIES}
-  stdc++exp
 )
 
 if(MSVC)
