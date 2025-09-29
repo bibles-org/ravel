@@ -6,7 +6,7 @@
 #include <ranges>
 #include <ui/theme.h>
 #include <ui/views/memory.h>
-
+#include <charconv>
 
 namespace ui {
     memory_view::memory_view() :
