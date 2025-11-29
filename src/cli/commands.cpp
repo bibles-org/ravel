@@ -190,7 +190,7 @@ namespace cli {
                 return command_status::ok;
             }
 
-            zydis::init(ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64, ZYDIS_FORMATTER_STYLE_INTEL);
+            zydis::init(MACHINE_MODE_LONG_64, STACK_WIDTH_64, FORMATTER_STYLE_INTEL);
             std::size_t offset = 0;
             for(int i = 0; i < instruction_count && offset < buffer.size(); ++i) {
                 const auto* data = reinterpret_cast<const std::uint8_t*>(buffer.data() + offset);

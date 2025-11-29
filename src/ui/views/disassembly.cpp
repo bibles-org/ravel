@@ -8,7 +8,7 @@ import zydis;
 
 namespace ui {
     disassembly_view::disassembly_view() : view("Disassembly") {
-        zydis::init(ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64, ZYDIS_FORMATTER_STYLE_INTEL);
+        zydis::init(MACHINE_MODE_LONG_64, STACK_WIDTH_64, FORMATTER_STYLE_INTEL);
     }
 
     void disassembly_view::render() {
