@@ -65,7 +65,7 @@ namespace ui {
             return;
         }
         if (m_region_buffer.empty()) {
-            ImGui::TextColored(theme::colors::RED, "Could not read memory for the selected region.");
+            ImGui::TextColored(theme::colors::red, "Could not read memory for the selected region.");
             return;
         }
 

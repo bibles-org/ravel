@@ -90,7 +90,7 @@ namespace app {
             int display_w, display_h;
             glfwGetFramebufferSize(m_window_handle.get(), &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
-            glClearColor(theme::colors::BG_DARK.x, theme::colors::BG_DARK.y, theme::colors::BG_DARK.z, 1.0f);
+            glClearColor(theme::colors::base.x, theme::colors::base.y, theme::colors::base.z, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -122,11 +122,11 @@ namespace app {
 
         if (ImGui::Begin("StatusBar", nullptr, flags)) {
             if (app::proc->is_attached()) {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::GREEN);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::green);
                 ImGui::Text("ATTACHED (PID: %u)", app::proc->get_attached_pid());
                 ImGui::PopStyleColor();
             } else {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::YELLOW);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::yellow);
                 ImGui::Text("DETACHED");
                 ImGui::PopStyleColor();
             }

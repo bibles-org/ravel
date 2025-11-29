@@ -85,7 +85,7 @@ namespace ui {
                 ImGui::TextUnformatted(process.name.c_str());
 
                 ImGui::TableSetColumnIndex(2);
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::base);
                 ImGui::TextUnformatted(process.executable_path.string().c_str());
                 ImGui::PopStyleColor();
             }

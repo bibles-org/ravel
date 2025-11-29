@@ -52,8 +52,8 @@ namespace ui {
             bool is_selected = (selected_idx == i);
 
             if (is_selected) {
-                ImGui::PushStyleColor(ImGuiCol_Header, theme::with_alpha(theme::colors::BLUE, 0.4f));
-                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::with_alpha(theme::colors::BLUE, 0.6f));
+                ImGui::PushStyleColor(ImGuiCol_Header, theme::with_alpha(theme::colors::blue, 0.4f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::with_alpha(theme::colors::blue, 0.6f));
             }
 
             if (ImGui::Selectable(cls->name.c_str(), is_selected, 0, ImVec2(0, 45))) {
@@ -103,11 +103,11 @@ namespace ui {
             ImGui::SetCursorScreenPos(ImVec2(last_item_min.x + 10.0f, last_item_min.y + 22.0f));
 
             if (cls->addr != 0) {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::base);
                 ImGui::TextUnformatted(std::format("0x{:016X}", cls->addr).c_str());
                 ImGui::PopStyleColor();
             } else {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::red);
                 ImGui::TextUnformatted("No address set");
                 ImGui::PopStyleColor();
             }
@@ -158,7 +158,7 @@ namespace ui {
     void memory_view::render_memory_view() {
         if (!selected_idx) {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 50);
-            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::FG_DARK);
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::base);
 
             float window_width = ImGui::GetContentRegionAvail().x;
             const char* text = "Select a memory class to view its contents";
@@ -230,14 +230,14 @@ namespace ui {
 
     void memory_view::render_memory_table() {
         if (!app::proc || !app::proc->is_attached()) {
-            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::RED);
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::red);
             ImGui::Text("No process attached");
             ImGui::PopStyleColor();
             return;
         }
 
         if (entries.empty()) {
-            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::ORANGE);
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::peach);
             if (!m_buffer_read_success && selected_idx.has_value() && classes[*selected_idx]->addr != 0) {
                 ImGui::Text("Failed to read memory data");
             } else {
@@ -267,7 +267,7 @@ namespace ui {
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextUnformatted(std::format("+0x{:04X}", entry.offset).c_str());
                 ImGui::TableSetColumnIndex(1);
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::CYAN);
+                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::blue);
                 ImGui::TextUnformatted(std::format("0x{:08X}", entry.addr).c_str());
                 ImGui::PopStyleColor();
 
@@ -279,7 +279,7 @@ namespace ui {
                     ImGui::PopStyleColor();
                     ImGui::PopFont();
                 } else {
-                    ImGui::TextColored(theme::colors::RED, "read error");
+                    ImGui::TextColored(theme::colors::red, "read error");
                 }
 
                 ImGui::TableSetColumnIndex(3);
@@ -332,24 +332,24 @@ namespace ui {
                         ImGui::EndPopup();
                     }
                 } else {
-                    ImGui::TextColored(theme::colors::RED, "invalid");
+                    ImGui::TextColored(theme::colors::red, "invalid");
                 }
 
                 ImGui::TableSetColumnIndex(4);
                 if (entry.valid) {
                     ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
-                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::GREEN);
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::green);
                     std::string ascii_repr = format_ascii(get_entry_data_span(entry));
                     ImGui::Text("'%s'", ascii_repr.c_str());
                     ImGui::PopStyleColor();
                     ImGui::PopFont();
                 } else {
-                    ImGui::TextColored(theme::colors::FG_DARK, "---");
+                    ImGui::TextColored(theme::colors::base, "---");
                 }
 
                 ImGui::TableSetColumnIndex(5);
                 if (entry.valid && entry.dereferenced_string) {
-                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::YELLOW);
+                    ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::yellow);
                     std::string display_str = *entry.dereferenced_string;
                     if (display_str.length() > 40) {
                         display_str = display_str.substr(0, 37) + "...";
@@ -363,7 +363,7 @@ namespace ui {
                         ImGui::EndTooltip();
                     }
                 } else {
-                    ImGui::TextColored(theme::colors::FG_DARK, "---");
+                    ImGui::TextColored(theme::colors::base, "---");
                 }
 
                 ImGui::PopID();
