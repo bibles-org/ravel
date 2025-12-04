@@ -41,7 +41,6 @@ namespace app {
         };
 
         void render_ui();
-        void render_status_bar();
 
         std::unique_ptr<GLFWwindow, glfw_deleter> m_window_handle;
         std::vector<std::unique_ptr<ui::view>> m_views;

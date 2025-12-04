@@ -106,35 +106,6 @@ namespace app {
         }
     }
 
-    void application::render_status_bar() {
-        const float status_bar_height = ImGui::GetFrameHeight() + ImGui::GetStyle().WindowPadding.y;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(
-                ImVec2(viewport->WorkPos.x, viewport->WorkPos.y + viewport->WorkSize.y - status_bar_height)
-        );
-        ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, status_bar_height));
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-
-        ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav |
-                                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse;
-
-        if (ImGui::Begin("StatusBar", nullptr, flags)) {
-            if (app::proc->is_attached()) {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::green);
-                ImGui::Text("ATTACHED (PID: %u)", app::proc->get_attached_pid());
-                ImGui::PopStyleColor();
-            } else {
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::yellow);
-                ImGui::Text("DETACHED");
-                ImGui::PopStyleColor();
-            }
-        }
-        ImGui::End();
-        ImGui::PopStyleVar(2);
-    }
-
     void application::render_ui() {
         static bool dockspace_open = true;
         static bool first_time = true;
@@ -188,8 +159,6 @@ namespace app {
         }
 
         ImGui::End();
-
-        render_status_bar();
     }
 
 } // namespace app
