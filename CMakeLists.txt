@@ -34,13 +34,15 @@ if(WIN32)
     set(PLATFORM_SOURCES src/platform/windows_controller.cpp)
     set(PLATFORM_LIBRARIES psapi)
 elseif(UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
     set(PLATFORM_SOURCES src/platform/linux_controller.cpp)
-    set(PLATFORM_LIBRARIES)
+    set(PLATFORM_LIBRARIES ${X11_LIBRARIES})
 else()
     message(FATAL_ERROR "Unsupported platform.")
 endif()
 
 add_subdirectory(vendor/zydis-bridge)
+add_subdirectory(vendor/zydiff)
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
@@ -74,7 +76,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   imgui
+  glfw
   zydis-bridge
+  zydiff
   ${PLATFORM_LIBRARIES}
 )
 

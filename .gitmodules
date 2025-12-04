@@ -8,3 +8,6 @@
 [submodule "vendor/zydis-bridge"]
 	path = vendor/zydis-bridge
 	url = https://github.com/bibles-org/zydis-bridge
+[submodule "vendor/zydiff"]
+	path = vendor/zydiff
+	url = https://github.com/moleium/zydiff

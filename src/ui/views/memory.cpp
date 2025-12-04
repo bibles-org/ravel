@@ -293,7 +293,7 @@ namespace ui {
                     ImGui::PushStyleColor(ImGuiCol_Text, theme::get_value_color());
                     bool item_clicked = ImGui::Selectable(
                             combined_display_str.c_str(), false,
-                            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap
+                            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap
                     );
                     ImGui::PopStyleColor();
 

@@ -79,7 +79,7 @@ namespace ui {
                 ImGui::TableSetColumnIndex(0);
                 if (ImGui::Selectable(
                             std::format("{}", process.pid).c_str(), is_selected,
-                            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap
+                            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap
                     )) {
                     m_selected_index = i;
                 }
