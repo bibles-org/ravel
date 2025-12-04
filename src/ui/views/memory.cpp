@@ -117,8 +117,6 @@ namespace ui {
                 ImGui::PopStyleColor();
             }
 
-            ImGui::SetCursorPos(original_cursor_pos);
-
             ImGui::PopID();
         }
     }
