@@ -9,7 +9,6 @@
 #endif
 
 namespace core {
-
     process::process() {
 #if defined(__linux__)
         m_controller = std::make_unique<platform::linux_controller>();
@@ -30,6 +29,15 @@ namespace core {
         auto result = m_controller->attach(pid);
         if (result.has_value()) {
             m_attached_pid = pid;
+
+            if (auto procs = enumerate_processes()) {
+                for (const auto& p : *procs) {
+                    if (p.pid == pid) {
+                        m_attached_process_name = p.name;
+                        break;
+                    }
+                }
+            }
         }
         return result;
     }
@@ -38,6 +46,7 @@ namespace core {
         if (m_attached_pid != 0) {
             m_controller->detach(m_attached_pid);
             m_attached_pid = 0;
+            m_attached_process_name.clear();
         }
     }
 
@@ -63,4 +72,18 @@ namespace core {
         return m_controller->read_memory(m_attached_pid, address, buffer);
     }
 
+    bool process::is_live() const {
+        return true;
+    }
+
+    std::string process::get_name() const {
+        if (is_attached()) {
+            return m_attached_process_name;
+        }
+        return "No Process Attached";
+    }
+
+    std::optional<std::uintptr_t> process::get_entry_point() const {
+        return std::nullopt;
+    }
 } // namespace core

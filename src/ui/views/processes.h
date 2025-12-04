@@ -22,6 +22,6 @@ namespace ui {
 
         ImGuiTextFilter m_filter;
 
-        void process_table(const ImGuiTextFilter& filter);
+        void process_table(core::process& target, const ImGuiTextFilter& filter);
     };
 } // namespace ui

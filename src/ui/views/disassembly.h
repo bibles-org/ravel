@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/process.h>
+#include <core/target.h>
 #include <optional>
 #include <vector>
 
@@ -25,6 +25,6 @@ namespace ui {
         std::size_t m_mapped_offset = 0;
 
         std::optional<std::size_t> m_selected_region_index;
-        bool m_attached_last_frame = false;
+        core::target* m_last_target = nullptr;
     };
 } // namespace ui

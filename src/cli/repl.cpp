@@ -1,3 +1,4 @@
+
 #include "repl.h"
 #include "commands.h"
 
@@ -17,14 +18,14 @@ namespace cli {
         bool running = true;
 
         while (running) {
-            if (app::proc && app::proc->is_attached()) {
-                std::print("(ravel: pid={})> ", app::proc->get_attached_pid());
+            if (app::active_target) {
+                std::print("(ravel: {})> ", app::active_target->get_name());
             } else {
                 std::print("(ravel)> ");
             }
 
             if (!std::getline(std::cin, line)) {
-                break; // EOF (Ctrl+D)
+                break; // eof (ctrl+d)
             }
 
             if (!line.empty()) {

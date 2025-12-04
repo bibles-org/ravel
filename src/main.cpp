@@ -1,26 +1,36 @@
 #include <app/application.h>
+#include <app/ctx.h>
 #include <cli/repl.h>
+#include <core/file_target.h>
 #include <core/process.h>
 #include <print>
 #include <string_view>
 #include <vector>
-#include <print>
-
-// forward declaration
-namespace app {
-    std::unique_ptr<core::process> proc = nullptr;
-}
 
 int main(int argc, char** argv) {
-    app::proc = std::make_unique<core::process>();
+    std::vector<std::string_view> args(argv + 1, argv + argc);
 
-    std::vector<std::string_view> args(argv, argv + argc);
     bool cli_mode = false;
+    std::string_view file_path;
+
     for (const auto& arg : args) {
         if (arg == "--cli" || arg == "-c") {
             cli_mode = true;
-            break;
+        } else if (!arg.starts_with("-")) {
+            file_path = arg;
         }
+    }
+
+    if (!file_path.empty()) {
+        auto file_target = core::file_target::create(file_path);
+        if (file_target) {
+            app::active_target = std::make_unique<core::file_target>(std::move(*file_target));
+        } else {
+            std::println(stderr, "Failed to open or parse file '{}'", file_path);
+            return 1;
+        }
+    } else {
+        app::active_target = std::make_unique<core::process>();
     }
 
     if (cli_mode) {
@@ -29,7 +39,7 @@ int main(int argc, char** argv) {
     } else {
         auto app_instance = app::application::create(1600, 900, "ravel");
         if (!app_instance) {
-            std::println(stderr, "Fatal: Failed to create GUI application window");
+            std::println(stderr, "Failed to create GUI application window");
             return -1;
         }
         app_instance->run();

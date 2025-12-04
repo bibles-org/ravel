@@ -1,14 +1,19 @@
 #include "application.h"
 
 #include <GLFW/glfw3.h>
+#include <app/ctx.h>
+#include <core/file_target.h>
+#include <core/process.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
+#include <print>
 
 #include "ui/theme.h"
 #include "ui/view.h"
 #include "ui/views/disassembly.h"
+#include "ui/views/file_info.h"
 #include "ui/views/memory.h"
 #include "ui/views/processes.h"
 
@@ -60,6 +65,7 @@ namespace app {
         }
 
         m_views.push_back(std::make_unique<ui::processes_view>());
+        m_views.push_back(std::make_unique<ui::file_info_view>());
         m_views.push_back(std::make_unique<ui::memory_view>());
         m_views.push_back(std::make_unique<ui::disassembly_view>());
     }
@@ -106,12 +112,38 @@ namespace app {
         }
     }
 
+    void application::show_open_file_popup() {
+        if (m_show_open_file_popup) {
+            ImGui::OpenPopup("Open File");
+        }
+
+        if (ImGui::BeginPopupModal("Open File", &m_show_open_file_popup, ImGuiWindowFlags_AlwaysAutoResize)) {
+            static char path_buf[1024] = "";
+            ImGui::InputText("File Path", path_buf, sizeof(path_buf));
+            if (ImGui::Button("Open")) {
+                auto file_target = core::file_target::create(path_buf);
+                if (file_target) {
+                    active_target = std::make_unique<core::file_target>(std::move(*file_target));
+                } else {
+                }
+                m_show_open_file_popup = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                m_show_open_file_popup = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
     void application::render_ui() {
         static bool dockspace_open = true;
         static bool first_time = true;
         static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -129,6 +161,21 @@ namespace app {
         ImGui::Begin("DockSpace", &dockspace_open, window_flags);
         ImGui::PopStyleVar(3);
 
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Open File...")) {
+                    m_show_open_file_popup = true;
+                }
+                if (ImGui::MenuItem("Close Target", nullptr, false, active_target != nullptr)) {
+                    active_target.reset();
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        show_open_file_popup();
+
         ImGuiID dockspace_id = ImGui::GetID("RavelDockspace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
 
@@ -145,13 +192,13 @@ namespace app {
                     ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.5f, nullptr, &dock_main_id);
 
             ImGui::DockBuilderDockWindow("Processes", dock_left_id);
+            ImGui::DockBuilderDockWindow("File Info", dock_left_id);
             ImGui::DockBuilderDockWindow("Memory", dock_main_id);
             ImGui::DockBuilderDockWindow("Disassembly", dock_right_id);
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
         for (const auto& view : m_views) {
-            // windows are not closable
             if (ImGui::Begin(view->get_title().data(), nullptr, ImGuiWindowFlags_NoCollapse)) {
                 view->render();
             }

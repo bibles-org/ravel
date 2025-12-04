@@ -1,8 +1,9 @@
+#include <ui/views/disassembly.h>
+
 #include <app/ctx.h>
 #include <format>
 #include <ranges>
 #include <ui/theme.h>
-#include <ui/views/disassembly.h>
 
 import zydis;
 
@@ -12,10 +13,13 @@ namespace ui {
     }
 
     void disassembly_view::render() {
-        bool is_attached = app::proc->is_attached();
-        if (is_attached != m_attached_last_frame) {
+        if (app::active_target.get() != m_last_target) {
             refresh_executable_regions();
-            m_attached_last_frame = is_attached;
+            m_last_target = app::active_target.get();
+        }
+        if (!app::active_target) {
+            ImGui::TextDisabled("No active target.");
+            return;
         }
 
         if (ImGui::Button("Refresh Regions")) {
@@ -57,7 +61,7 @@ namespace ui {
         ImGui::Separator();
 
         if (m_executable_regions.empty()) {
-            ImGui::TextDisabled("No executable regions found. Attach to a process and refresh.");
+            ImGui::TextDisabled("No executable regions found.");
             return;
         }
         if (!m_selected_region_index.has_value()) {
@@ -151,11 +155,11 @@ namespace ui {
         m_mapped_offset = 0;
         m_selected_region_index.reset();
 
-        if (!app::proc->is_attached()) {
+        if (!app::active_target) {
             return;
         }
 
-        auto regions_result = app::proc->get_memory_regions();
+        auto regions_result = app::active_target->get_memory_regions();
         if (!regions_result.has_value()) {
             return;
         }
@@ -173,14 +177,14 @@ namespace ui {
         m_region_buffer.clear();
         m_mapped_offset = 0;
 
-        if (!m_selected_region_index.has_value()) {
+        if (!m_selected_region_index.has_value() || !app::active_target) {
             return;
         }
 
         const auto& region = m_executable_regions[*m_selected_region_index];
 
         m_region_buffer.resize(region.size);
-        auto read_result = app::proc->read_memory(region.base_address, m_region_buffer);
+        auto read_result = app::active_target->read_memory(region.base_address, m_region_buffer);
 
         if (!read_result.has_value()) {
             m_region_buffer.clear();
@@ -198,7 +202,6 @@ namespace ui {
 
         while (m_instruction_offsets.size() < static_cast<std::size_t>(last_item_index) &&
                m_mapped_offset < m_region_buffer.size()) {
-
             m_instruction_offsets.push_back(m_mapped_offset);
 
             const std::uint8_t* instruction_ptr =

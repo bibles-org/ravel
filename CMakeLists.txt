@@ -25,7 +25,7 @@ target_sources(imgui PRIVATE
 )
 
 target_include_directories(imgui PUBLIC vendor/imgui)
-target_link_libraries(imgui PUBLIC 
+target_link_libraries(imgui PUBLIC
   glfw
   OpenGL::GL
 )
@@ -44,21 +44,29 @@ add_subdirectory(vendor/zydis-bridge)
 
 add_executable(${PROJECT_NAME}
   src/main.cpp
+
   src/app/application.cpp
+  src/app/ctx.cpp
+
   src/core/process.cpp
+  src/core/file_target.cpp
+
+  src/core/parsers/elf_parser.cpp
+  src/core/parsers/pe_parser.cpp
 
   ${PLATFORM_SOURCES}
 
   src/ui/views/processes.cpp
   src/ui/views/memory.cpp
   src/ui/views/disassembly.cpp
+  src/ui/views/file_info.cpp
 
   src/cli/dispatcher.cpp
   src/cli/repl.cpp
   src/cli/commands.cpp
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
   src
   vendor
   vendor/imgui/backends

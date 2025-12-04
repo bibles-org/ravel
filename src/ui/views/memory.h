@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/process.h>
+#include <core/target.h>
 #include <cstdint>
 #include <expected>
 #include <memory>
@@ -67,6 +67,7 @@ namespace ui {
         std::vector<memory_entry> entries;
         std::vector<std::byte> memory_buffer;
         bool m_buffer_read_success;
+        core::target* m_last_target = nullptr;
 
         char new_class_name[256];
         char addr_input[32];

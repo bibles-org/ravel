@@ -1,12 +1,13 @@
+#include <ui/views/memory.h>
+
 #include <algorithm>
 #include <app/ctx.h>
+#include <charconv>
 #include <cstring>
 #include <format>
 #include <numeric>
 #include <ranges>
 #include <ui/theme.h>
-#include <ui/views/memory.h>
-#include <charconv>
 
 namespace ui {
     memory_view::memory_view() :
@@ -17,6 +18,10 @@ namespace ui {
     }
 
     void memory_view::render() {
+        if (app::active_target.get() != m_last_target) {
+            refresh_data();
+            m_last_target = app::active_target.get();
+        }
         const float sidebar_width = 240.0f;
 
         ImGui::BeginChild("Sidebar", ImVec2(sidebar_width, 0), true);
@@ -73,7 +78,7 @@ namespace ui {
                 }
 
                 if (ImGui::MenuItem("Rename Class")) {
-                    // TODO: Implement rename functionality
+                    // todo: implement rename functionality
                 }
 
                 ImGui::Separator();
@@ -229,9 +234,9 @@ namespace ui {
     }
 
     void memory_view::render_memory_table() {
-        if (!app::proc || !app::proc->is_attached()) {
+        if (!app::active_target) {
             ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::red);
-            ImGui::Text("No process attached");
+            ImGui::Text("No active target");
             ImGui::PopStyleColor();
             return;
         }
@@ -250,7 +255,6 @@ namespace ui {
         const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
                                       ImGuiTableFlags_Sortable | ImGuiTableFlags_BordersInnerV;
         if (ImGui::BeginTable("MemoryTable", 6, flags)) {
-
             ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 130.0f);
             ImGui::TableSetupColumn("Raw Bytes", ImGuiTableColumnFlags_WidthFixed, 160.0f);
@@ -421,7 +425,7 @@ namespace ui {
         memory_buffer.clear();
         m_buffer_read_success = false;
 
-        if (!selected_idx.has_value()) {
+        if (!selected_idx.has_value() || !app::active_target) {
             return;
         }
 
@@ -467,7 +471,6 @@ namespace ui {
                 entry.valid = false;
             }
 
-
             if (entry.valid) {
                 entry.dereferenced_string = dereference_as_string(get_entry_data_span(entry));
             } else {
@@ -481,7 +484,6 @@ namespace ui {
                 break;
         }
     }
-
 
     std::expected<std::uintptr_t, bool> memory_view::parse_address_input(std::string_view input) {
         if (input.empty()) {
@@ -515,12 +517,12 @@ namespace ui {
     }
 
     std::expected<std::uintptr_t, bool> memory_view::dereference_pointer(std::uintptr_t ptr_addr) {
-        if (!app::proc || !app::proc->is_attached()) {
+        if (!app::active_target) {
             return std::unexpected(false);
         }
 
         std::array<std::byte, sizeof(std::uintptr_t)> buffer{};
-        auto result = app::proc->read_memory(ptr_addr, std::span(buffer));
+        auto result = app::active_target->read_memory(ptr_addr, std::span(buffer));
 
         if (!result.has_value()) {
             return std::unexpected(false);
@@ -559,7 +561,7 @@ namespace ui {
     }
 
     std::optional<std::string> memory_view::read_string(std::uintptr_t addr, std::size_t max_len) {
-        if (!app::proc || !app::proc->is_attached()) {
+        if (!app::active_target) {
             return std::nullopt;
         }
 
@@ -567,7 +569,8 @@ namespace ui {
         bool success = false;
 
         result_str.resize_and_overwrite(max_len, [&](char* data, std::size_t requested_size) -> std::size_t {
-            auto read_op = app::proc->read_memory(addr, std::as_writable_bytes(std::span(data, requested_size)));
+            auto read_op =
+                    app::active_target->read_memory(addr, std::as_writable_bytes(std::span(data, requested_size)));
             if (!read_op) {
                 success = false;
                 return 0;
@@ -595,7 +598,7 @@ namespace ui {
     }
 
     std::expected<std::vector<std::byte>, bool> memory_view::read_memory(std::uintptr_t addr, std::size_t size) {
-        if (!app::proc || !app::proc->is_attached()) {
+        if (!app::active_target) {
             return std::unexpected(false);
         }
         if (size == 0) {
@@ -603,7 +606,7 @@ namespace ui {
         }
 
         std::vector<std::byte> buffer(size);
-        auto operation_result = app::proc->read_memory(addr, std::span<std::byte>(buffer));
+        auto operation_result = app::active_target->read_memory(addr, std::span<std::byte>(buffer));
 
         if (operation_result.has_value()) {
             return buffer;

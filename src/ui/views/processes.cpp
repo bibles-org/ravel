@@ -1,15 +1,23 @@
+#include <ui/views/processes.h>
+
 #include <app/ctx.h>
+#include <core/process.h>
 #include <format>
 #include <ui/theme.h>
-#include <ui/views/processes.h>
 
 namespace ui {
     processes_view::processes_view() : view("Processes") {
     }
 
     void processes_view::render() {
+        auto* live_target = dynamic_cast<core::process*>(app::active_target.get());
+        if (!live_target) {
+            ImGui::TextDisabled("Process features are disabled when a file is open.");
+            return;
+        }
+
         if (ImGui::Button("Refresh")) {
-            auto result = app::proc->enumerate_processes();
+            auto result = live_target->enumerate_processes();
             if (result) {
                 m_processes = std::move(result.value());
                 m_selected_index.reset();
@@ -26,9 +34,9 @@ namespace ui {
         }
         if (ImGui::Button("Attach") && can_attach) {
             const auto& selected_process = m_processes[*m_selected_index];
-            auto result = app::proc->attach_to(selected_process.pid);
+            auto result = live_target->attach_to(selected_process.pid);
             if (!result) {
-                // TODO: Log or show error popup
+                // todo: log or show error popup
             }
         }
         if (!can_attach) {
@@ -42,10 +50,10 @@ namespace ui {
 
         ImGui::Separator();
 
-        process_table(m_filter);
+        process_table(*live_target, m_filter);
     }
 
-    void processes_view::process_table(const ImGuiTextFilter& filter) {
+    void processes_view::process_table(core::process& target, const ImGuiTextFilter& filter) {
         const ImGuiTableFlags flags =
                 ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY;
 
@@ -76,7 +84,7 @@ namespace ui {
                     m_selected_index = i;
                 }
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                    if (app::proc->attach_to(process.pid)) {
+                    if (target.attach_to(process.pid)) {
                         m_selected_index = i;
                     }
                 }
