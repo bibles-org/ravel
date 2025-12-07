@@ -1,7 +1,7 @@
 #pragma once
 
 #include <core/parsers/binary_parser.h>
-#include <core/parsers/pe.h>
+#include <core/headers/pe.h>
 
 namespace core {
     class pe_parser final : public binary_parser {
