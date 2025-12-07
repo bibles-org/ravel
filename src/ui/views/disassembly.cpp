@@ -13,42 +13,47 @@ namespace ui {
     }
 
     void disassembly_view::render() {
-        if (app::active_target.get() != m_last_target) {
-            refresh_executable_regions();
-            m_last_target = app::active_target.get();
+        if (app::active_target.get() != active_target) {
+            update_target_regions();
+            active_target = app::active_target.get();
         }
+
         if (!app::active_target) {
             ImGui::TextDisabled("No active target.");
             return;
         }
 
+        render_region_selector();
+        ImGui::Separator();
+        render_listing();
+    }
+
+    void disassembly_view::render_region_selector() {
         if (ImGui::Button("Refresh Regions")) {
-            refresh_executable_regions();
+            update_target_regions();
         }
         ImGui::SameLine();
 
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        std::string combo_preview_str;
-        if (!m_selected_region_index.has_value()) {
-            combo_preview_str = "Select an executable region...";
-        } else {
-            const auto& region = m_executable_regions[*m_selected_region_index];
-            combo_preview_str = std::format(
+        std::string preview = "Select an executable region...";
+        if (current_region_idx) {
+            const auto& region = executable_regions[*current_region_idx];
+            preview = std::format(
                     "{} (0x{:X} - 0x{:X})", region.name, region.base_address, region.base_address + region.size
             );
         }
 
-        if (ImGui::BeginCombo("##region_combo", combo_preview_str.c_str())) {
-            for (std::size_t i = 0; i < m_executable_regions.size(); ++i) {
-                const bool is_selected = m_selected_region_index.has_value() && (*m_selected_region_index == i);
+        if (ImGui::BeginCombo("##region_combo", preview.c_str())) {
+            for (std::size_t i = 0; i < executable_regions.size(); ++i) {
+                const bool is_selected = current_region_idx && (*current_region_idx == i);
+                const auto& region = executable_regions[i];
                 std::string item_text = std::format(
-                        "{} (0x{:X} - 0x{:X})", m_executable_regions[i].name, m_executable_regions[i].base_address,
-                        m_executable_regions[i].base_address + m_executable_regions[i].size
+                        "{} (0x{:X} - 0x{:X})", region.name, region.base_address, region.base_address + region.size
                 );
 
                 if (ImGui::Selectable(item_text.c_str(), is_selected)) {
-                    if (!m_selected_region_index.has_value() || *m_selected_region_index != i) {
-                        select_region(i);
+                    if (!is_selected) {
+                        load_region_data(i);
                     }
                 }
                 if (is_selected) {
@@ -57,162 +62,152 @@ namespace ui {
             }
             ImGui::EndCombo();
         }
+    }
 
-        ImGui::Separator();
-
-        if (m_executable_regions.empty()) {
+    void disassembly_view::render_listing() {
+        if (executable_regions.empty()) {
             ImGui::TextDisabled("No executable regions found.");
             return;
         }
-        if (!m_selected_region_index.has_value()) {
-            ImGui::TextDisabled("Select an executable memory region to view disassembly.");
+        if (!current_region_idx) {
+            ImGui::TextDisabled("Select a region to view disassembly.");
             return;
         }
-        if (m_region_buffer.empty()) {
+        if (region_data.empty()) {
             ImGui::TextColored(theme::colors::red, "Could not read memory for the selected region.");
             return;
         }
 
-        const ImGuiTableFlags flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY |
-                                      ImGuiTableFlags_BordersInnerV;
-
-        if (ImGui::BeginTable("disassembly_table", 3, flags)) {
-            ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-            ImGui::TableSetupColumn("Bytes", ImGuiTableColumnFlags_WidthFixed, 200.0f);
-            ImGui::TableSetupColumn("Instruction", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableHeadersRow();
-
-            const auto& region = m_executable_regions[*m_selected_region_index];
-
+        if (ImGui::BeginChild("disassembly_listing", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar)) {
             ImGuiListClipper clipper;
-            clipper.Begin(static_cast<int>(region.size));
+            clipper.Begin(static_cast<int>(region_data.size()));
 
             while (clipper.Step()) {
-                ensure_display_offsets(clipper.DisplayEnd);
-
+                disassemble_to_index(clipper.DisplayEnd);
                 for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
-                    if (static_cast<std::size_t>(row) >= m_instruction_offsets.size()) {
+                    if (static_cast<std::size_t>(row) >= instructions.size()) {
                         break;
                     }
-
-                    const std::size_t offset = m_instruction_offsets[static_cast<std::size_t>(row)];
-                    if (offset >= m_region_buffer.size())
-                        continue;
-
-                    const std::uint8_t* instruction_ptr =
-                            reinterpret_cast<const std::uint8_t*>(m_region_buffer.data() + offset);
-
-                    auto disasm_result = zydis::disassemble_format(instruction_ptr);
-
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::TextColored(
-                            theme::get_address_color(), std::format("0x{:X}", region.base_address + offset).c_str()
-                    );
-
-                    if (!disasm_result) {
-                        ImGui::TableSetColumnIndex(1);
-                        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
-                        ImGui::TextColored(
-                                theme::get_bytes_color(), "%02X", std::to_integer<unsigned int>(m_region_buffer[offset])
-                        );
-                        ImGui::PopFont();
-                        ImGui::TableSetColumnIndex(2);
-                        ImGui::Text("db ??");
-                        continue;
-                    }
-
-                    const auto& [decoded, text] = *disasm_result;
-
-                    ImGui::TableSetColumnIndex(1);
-                    std::string byte_str;
-                    for (int i = 0; i < decoded.decoded.length; ++i) {
-                        byte_str += std::format("{:02X} ", static_cast<unsigned int>(instruction_ptr[i]));
-                    }
-                    if (!byte_str.empty())
-                        byte_str.pop_back();
-
-                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
-                    ImGui::TextColored(theme::get_bytes_color(), "%s", byte_str.c_str());
-                    ImGui::PopFont();
-
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
-                    ImGui::TextUnformatted(text.c_str());
-                    ImGui::PopFont();
+                    render_instruction(instructions[static_cast<std::size_t>(row)]);
                 }
             }
             clipper.End();
+        }
+        ImGui::EndChild();
+    }
 
-            ImGui::EndTable();
+    void disassembly_view::render_instruction(const instruction& instr) {
+        ImGui::TextColored(theme::colors::overlay0, "0x%llX", static_cast<unsigned long long>(instr.address));
+        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x * 2.0f);
+
+        bool is_selected = (selected_addr == instr.address);
+        if (ImGui::Selectable(
+                    std::format("##{}", instr.address).c_str(), is_selected,
+                    ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap
+            )) {
+            selected_addr = instr.address;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Address: 0x%llX", static_cast<unsigned long long>(instr.address));
+        }
+
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::TextColored(get_instruction_color(instr.decoded), "%s", instr.text.c_str());
+    }
+
+    ImVec4 disassembly_view::get_instruction_color(const ZydisDecodedInstruction& instr) const {
+        switch (instr.meta.category) {
+            case ZYDIS_CATEGORY_CALL:
+                return theme::colors::blue;
+            case ZYDIS_CATEGORY_COND_BR:
+                return theme::colors::yellow;
+            case ZYDIS_CATEGORY_UNCOND_BR:
+                return theme::colors::red;
+            case ZYDIS_CATEGORY_RET:
+                return theme::colors::mauve;
+            case ZYDIS_CATEGORY_INTERRUPT:
+            case ZYDIS_CATEGORY_SYSTEM:
+                return theme::colors::peach;
+            default:
+                return theme::colors::text;
         }
     }
 
-    void disassembly_view::refresh_executable_regions() {
-        m_instruction_offsets.clear();
-        m_executable_regions.clear();
-        m_region_buffer.clear();
-        m_mapped_offset = 0;
-        m_selected_region_index.reset();
+    void disassembly_view::update_target_regions() {
+        instructions.clear();
+        executable_regions.clear();
+        region_data.clear();
+        scan_offset = 0;
+        selected_addr = 0;
+        current_region_idx.reset();
 
         if (!app::active_target) {
             return;
         }
 
         auto regions_result = app::active_target->get_memory_regions();
-        if (!regions_result.has_value()) {
+        if (!regions_result) {
             return;
         }
 
-        for (const auto& region : regions_result.value()) {
+        for (const auto& region : *regions_result) {
             if (region.permission.find('x') != std::string::npos) {
-                m_executable_regions.push_back(region);
+                executable_regions.push_back(region);
             }
         }
     }
 
-    void disassembly_view::select_region(std::size_t index) {
-        m_selected_region_index = index;
-        m_instruction_offsets.clear();
-        m_region_buffer.clear();
-        m_mapped_offset = 0;
+    void disassembly_view::load_region_data(std::size_t index) {
+        current_region_idx = index;
+        instructions.clear();
+        region_data.clear();
+        scan_offset = 0;
+        selected_addr = 0;
 
-        if (!m_selected_region_index.has_value() || !app::active_target) {
+        if (!current_region_idx || !app::active_target) {
             return;
         }
 
-        const auto& region = m_executable_regions[*m_selected_region_index];
+        const auto& region = executable_regions[*current_region_idx];
 
-        m_region_buffer.resize(region.size);
-        auto read_result = app::active_target->read_memory(region.base_address, m_region_buffer);
+        region_data.resize(region.size);
+        auto read_result = app::active_target->read_memory(region.base_address, region_data);
 
-        if (!read_result.has_value()) {
-            m_region_buffer.clear();
+        if (!read_result) {
+            region_data.clear();
         }
     }
 
-    void disassembly_view::ensure_display_offsets(int last_item_index) {
-        if (static_cast<std::size_t>(last_item_index) <= m_instruction_offsets.size()) {
+    void disassembly_view::disassemble_to_index(int index) {
+        if (region_data.empty() || !current_region_idx) {
             return;
         }
 
-        if (m_mapped_offset >= m_region_buffer.size()) {
-            return;
+        if (instructions.capacity() < static_cast<std::size_t>(index)) {
+            instructions.reserve(static_cast<std::size_t>(index));
         }
 
-        while (m_instruction_offsets.size() < static_cast<std::size_t>(last_item_index) &&
-               m_mapped_offset < m_region_buffer.size()) {
-            m_instruction_offsets.push_back(m_mapped_offset);
+        while (instructions.size() < static_cast<std::size_t>(index) && scan_offset < region_data.size()) {
+            const auto* ptr = reinterpret_cast<const std::uint8_t*>(region_data.data() + scan_offset);
+            auto result = zydis::disassemble_format(ptr);
 
-            const std::uint8_t* instruction_ptr =
-                    reinterpret_cast<const std::uint8_t*>(m_region_buffer.data() + m_mapped_offset);
+            instruction new_instr;
+            new_instr.address = executable_regions[*current_region_idx].base_address + scan_offset;
 
-            auto decoded_info = zydis::get_instruction_info(instruction_ptr);
-            if (!decoded_info || decoded_info->length == 0) {
-                m_mapped_offset++;
+            if (result) {
+                auto& [decoded_full, text] = *result;
+                new_instr.decoded = decoded_full.decoded;
+                new_instr.text = std::move(text);
             } else {
-                m_mapped_offset += decoded_info->length;
+                new_instr.text = "db ??";
+                new_instr.decoded.length = 1;
+                new_instr.decoded.meta.category = ZYDIS_CATEGORY_INVALID;
             }
+
+            new_instr.decoded.length = std::max(std::uint8_t{1}, new_instr.decoded.length);
+
+            scan_offset += new_instr.decoded.length;
+            instructions.push_back(std::move(new_instr));
         }
     }
 
