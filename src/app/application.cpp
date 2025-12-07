@@ -12,6 +12,7 @@
 
 #include "ui/theme.h"
 #include "ui/view.h"
+#include "ui/views/diff_view.h"
 #include "ui/views/disassembly.h"
 #include "ui/views/file_info.h"
 #include "ui/views/memory.h"
@@ -68,6 +69,7 @@ namespace app {
         m_views.push_back(std::make_unique<ui::file_info_view>());
         m_views.push_back(std::make_unique<ui::memory_view>());
         m_views.push_back(std::make_unique<ui::disassembly_view>());
+        m_views.push_back(std::make_unique<ui::diff_view>());
     }
 
     application::~application() {
@@ -187,14 +189,17 @@ namespace app {
 
             ImGuiID dock_main_id = dockspace_id;
             ImGuiID dock_left_id =
-                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.35f, nullptr, &dock_main_id);
+                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.25f, nullptr, &dock_main_id);
+            ImGuiID dock_bottom_id =
+                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.30f, nullptr, &dock_main_id);
             ImGuiID dock_right_id =
-                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.5f, nullptr, &dock_main_id);
+                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.60f, nullptr, &dock_main_id);
 
             ImGui::DockBuilderDockWindow("Processes", dock_left_id);
             ImGui::DockBuilderDockWindow("File Info", dock_left_id);
-            ImGui::DockBuilderDockWindow("Memory", dock_main_id);
-            ImGui::DockBuilderDockWindow("Disassembly", dock_right_id);
+            ImGui::DockBuilderDockWindow("Memory", dock_right_id);
+            ImGui::DockBuilderDockWindow("Disassembly", dock_main_id);
+            ImGui::DockBuilderDockWindow("Binary Diff", dock_bottom_id);
             ImGui::DockBuilderFinish(dockspace_id);
         }
 

@@ -62,6 +62,7 @@ add_executable(${PROJECT_NAME}
   src/ui/views/memory.cpp
   src/ui/views/disassembly.cpp
   src/ui/views/file_info.cpp
+  src/ui/views/diff_view.cpp
 
   src/cli/dispatcher.cpp
   src/cli/repl.cpp
