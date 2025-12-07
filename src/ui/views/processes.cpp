@@ -57,10 +57,9 @@ namespace ui {
         const ImGuiTableFlags flags =
                 ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY;
 
-        if (ImGui::BeginTable("processes_table", 3, flags)) {
+        if (ImGui::BeginTable("processes_table", 2, flags)) {
             ImGui::TableSetupColumn("PID", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupScrollFreeze(0, 1);
             ImGui::TableHeadersRow();
 
@@ -91,11 +90,6 @@ namespace ui {
 
                 ImGui::TableSetColumnIndex(1);
                 ImGui::TextUnformatted(process.name.c_str());
-
-                ImGui::TableSetColumnIndex(2);
-                ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::base);
-                ImGui::TextUnformatted(process.executable_path.string().c_str());
-                ImGui::PopStyleColor();
             }
 
             ImGui::EndTable();
