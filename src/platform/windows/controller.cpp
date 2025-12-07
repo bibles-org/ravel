@@ -4,7 +4,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
-#include <platform/windows_controller.h>
+#include <platform/windows/controller.h>
 #include <core/process.h>
 #include <util/expected.h>
 

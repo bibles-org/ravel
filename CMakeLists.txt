@@ -31,11 +31,11 @@ target_link_libraries(imgui PUBLIC
 )
 
 if(WIN32)
-    set(PLATFORM_SOURCES src/platform/windows_controller.cpp)
+    set(PLATFORM_SOURCES src/platform/windows/controller.cpp)
     set(PLATFORM_LIBRARIES psapi)
 elseif(UNIX AND NOT APPLE)
     find_package(X11 REQUIRED)
-    set(PLATFORM_SOURCES src/platform/linux_controller.cpp)
+    set(PLATFORM_SOURCES src/platform/linux/controller.cpp)
     set(PLATFORM_LIBRARIES ${X11_LIBRARIES})
 else()
     message(FATAL_ERROR "Unsupported platform.")

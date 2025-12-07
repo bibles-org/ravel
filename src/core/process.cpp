@@ -1,9 +1,9 @@
 #include <core/process.h>
 
 #if defined(__linux__)
-#include <platform/linux_controller.h>
+#include <platform/linux/controller.h>
 #elif defined(_WIN32)
-#include <platform/windows_controller.h>
+#include <platform/windows/controller.h>
 #else
 #error "unsupported platform"
 #endif
