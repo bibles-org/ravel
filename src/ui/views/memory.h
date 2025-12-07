@@ -1,58 +1,48 @@
 #pragma once
 
-#include <core/target.h>
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
-#include <string_view>
-#include <ui/view.h>
 #include <vector>
 
-#include <imgui.h>
-#include <imgui_internal.h>
+#include <core/target.h>
+#include <ui/view.h>
 
 namespace ui {
-    enum class memory_type : uint8_t {
-        int8,
-        uint8,
-        int16,
-        uint16,
-        int32,
-        uint32,
-        int64,
-        uint64,
-        float32,
-        float64,
-        pointer,
-        text,
-        bytes
+    enum class type_id : std::uint8_t {
+        i8,
+        u8,
+        i16,
+        u16,
+        i32,
+        u32,
+        i64,
+        u64,
+        f32,
+        f64,
+        ptr,
+        txt,
+        hex
     };
 
-    struct memory_class {
+    struct field {
+        std::size_t offset = 0;
+        type_id type = type_id::i32;
+        std::size_t size = 4;
+        bool valid = false;
+        std::optional<std::string> meta;
+    };
+
+    struct block {
         std::string name;
-        std::uintptr_t addr;
-        std::size_t size;
-        bool expanded;
+        std::uintptr_t base = 0;
+        std::size_t size = 256;
+        std::vector<field> fields;
 
-        memory_class(std::string_view n, std::uintptr_t a = 0, std::size_t sz = 256) :
-            name(n), addr(a), size(sz), expanded(true) {
-        }
-    };
-
-    struct memory_entry {
-        std::size_t offset;
-        std::uintptr_t addr;
-        std::size_t data_offset;
-        std::size_t data_size;
-        std::optional<std::string> dereferenced_string;
-        memory_type type;
-        std::size_t type_size;
-        bool valid;
-
-        memory_entry() :
-            offset(0), addr(0), data_offset(0), data_size(0), type(memory_type::int32), type_size(4), valid(false) {
+        explicit block(std::string_view n) : name(n) {
         }
     };
 
@@ -62,50 +52,36 @@ namespace ui {
         void render() override;
 
     private:
-        std::vector<std::unique_ptr<memory_class>> classes;
-        std::optional<std::size_t> selected_idx;
-        std::vector<memory_entry> entries;
-        std::vector<std::byte> memory_buffer;
-        bool m_buffer_read_success;
-        core::target* m_last_target = nullptr;
+        void draw_nav();
+        void draw_table();
+        void draw_popups();
 
-        char new_class_name[256];
-        char addr_input[32];
-        bool show_add_popup;
-        bool auto_refresh;
-        float refresh_rate;
+        void add_block(std::string_view name);
+        void select_block(std::size_t idx);
+        void refresh_cache();
+        void update_layout(std::size_t start_idx);
+        void set_field_type(std::size_t idx, type_id type);
 
-        void render_sidebar();
-        void render_memory_view();
-        void render_class_list();
-        void render_add_popup();
-        void render_memory_table();
+        [[nodiscard]] std::span<const std::byte> read_field(const field& f) const;
+        [[nodiscard]] std::string fmt_value(const field& f);
+        [[nodiscard]] static std::string fmt_hex(std::span<const std::byte> data);
+        [[nodiscard]] static std::string fmt_txt(std::span<const std::byte> data);
 
-        void add_class(std::string_view name);
-        void remove_class(std::size_t index);
-        void refresh_data();
+        [[nodiscard]] std::optional<std::string> resolve_ptr(std::span<const std::byte> data);
+        [[nodiscard]] static std::size_t type_size(type_id type);
+        [[nodiscard]] static const char* type_name(type_id type);
 
-        std::expected<std::vector<std::byte>, bool> read_memory(std::uintptr_t addr, std::size_t size);
-        std::string format_hex(std::span<const std::byte> data);
-        std::string format_ascii(std::span<const std::byte> data);
-        std::string format_typed_value(const memory_entry& entry);
+        std::vector<std::unique_ptr<block>> blocks;
+        std::optional<std::size_t> active_idx;
+        core::target* target = nullptr;
 
-        std::expected<std::uintptr_t, bool> parse_address_input(std::string_view input);
-        std::expected<std::uintptr_t, bool> dereference_pointer(std::uintptr_t ptr_addr);
+        std::vector<std::byte> cache;
+        bool cache_valid = false;
 
-        std::optional<std::string> dereference_as_string(std::span<const std::byte> data);
-        std::optional<std::string> read_string(std::uintptr_t addr, std::size_t max_len = 64);
-
-        std::span<const std::byte> get_entry_data_span(const memory_entry& entry) const;
-
-        template <typename T>
-        T bytes_to(std::span<const std::byte> data)
-            requires(std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>);
-
-        bool is_valid_addr(std::uintptr_t addr);
-        std::size_t get_type_size(memory_type type);
-        const char* get_type_name(memory_type type);
-        void change_entry_type(std::size_t entry_idx, memory_type new_type);
-        void rebuild_entries_from_index(std::size_t start_idx);
+        char addr_buf[64]{};
+        char name_buf[64]{};
+        bool show_create = false;
+        bool auto_refresh = false;
+        float refresh_rate = 1.0f;
     };
 } // namespace ui
