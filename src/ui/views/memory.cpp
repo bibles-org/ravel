@@ -248,7 +248,19 @@ namespace ui {
         } else {
             cache.clear();
         }
-        update_layout(0);
+
+        for (auto& f : blk.fields) {
+            f.valid = cache_valid && (f.offset + f.size <= cache.size());
+            if (f.valid) {
+                f.meta = resolve_ptr(read_field(f));
+            } else {
+                f.meta.reset();
+            }
+        }
+
+        if (blk.fields.empty()) {
+            update_layout(0);
+        }
     }
 
     void memory_view::update_layout(std::size_t start_idx) {
@@ -261,7 +273,8 @@ namespace ui {
         }
 
         size_t off = (start_idx > 0) ? (blk.fields.back().offset + blk.fields.back().size) : 0;
-        type_id type = (start_idx > 0) ? blk.fields.back().type : type_id::u32;
+
+        type_id type = type_id::u32;
 
         while (off < blk.size) {
             field f{.offset = off, .type = type, .size = type_size(type)};
@@ -285,7 +298,21 @@ namespace ui {
         auto& blk = *blocks[*active_idx];
         if (idx < blk.fields.size()) {
             blk.fields[idx].type = type;
-            update_layout(idx);
+            blk.fields[idx].size = type_size(type);
+
+            size_t available = blk.size - blk.fields[idx].offset;
+            if (blk.fields[idx].size > available) {
+                blk.fields[idx].size = available;
+            }
+
+            blk.fields[idx].valid = cache_valid && (blk.fields[idx].offset + blk.fields[idx].size <= cache.size());
+            if (blk.fields[idx].valid) {
+                blk.fields[idx].meta = resolve_ptr(read_field(blk.fields[idx]));
+            } else {
+                blk.fields[idx].meta.reset();
+            }
+
+            update_layout(idx + 1);
         }
     }
 
