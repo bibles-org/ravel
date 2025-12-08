@@ -19,6 +19,11 @@ namespace app {
         imgui_failed,
     };
 
+    struct view_entry {
+        std::unique_ptr<ui::view> instance;
+        bool visible = false;
+    };
+
     class application {
     public:
         static std::expected<application, init_error> create(int width, int height, std::string_view title);
@@ -42,7 +47,7 @@ namespace app {
         void show_open_file_popup();
 
         std::unique_ptr<GLFWwindow, glfw_deleter> m_window_handle;
-        std::vector<std::unique_ptr<ui::view>> m_views;
+        std::vector<view_entry> m_views;
 
         bool m_show_open_file_popup = false;
     };

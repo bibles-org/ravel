@@ -66,12 +66,12 @@ namespace app {
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
 
-        m_views.push_back(std::make_unique<ui::processes_view>());
-        m_views.push_back(std::make_unique<ui::file_info_view>());
-        m_views.push_back(std::make_unique<ui::memory_view>());
-        m_views.push_back(std::make_unique<ui::disassembly_view>());
-        m_views.push_back(std::make_unique<ui::diff_view>());
-        m_views.push_back(std::make_unique<ui::scanner_view>());
+        m_views.push_back({std::make_unique<ui::processes_view>(), true});
+        m_views.push_back({std::make_unique<ui::disassembly_view>(), true});
+        m_views.push_back({std::make_unique<ui::file_info_view>(), false});
+        m_views.push_back({std::make_unique<ui::memory_view>(), false});
+        m_views.push_back({std::make_unique<ui::scanner_view>(), false});
+        m_views.push_back({std::make_unique<ui::diff_view>(), false});
     }
 
     application::~application() {
@@ -128,7 +128,6 @@ namespace app {
                 auto file_target = core::file_target::create(path_buf);
                 if (file_target) {
                     active_target = std::make_unique<core::file_target>(std::move(*file_target));
-                } else {
                 }
                 m_show_open_file_popup = false;
                 ImGui::CloseCurrentPopup();
@@ -173,8 +172,22 @@ namespace app {
                 if (ImGui::MenuItem("Close Target", nullptr, false, active_target != nullptr)) {
                     active_target.reset();
                 }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Exit")) {
+                    glfwSetWindowShouldClose(m_window_handle.get(), 1);
+                }
                 ImGui::EndMenu();
             }
+
+            if (ImGui::BeginMenu("Views")) {
+                for (auto& entry : m_views) {
+                    if (ImGui::MenuItem(entry.instance->get_title().data(), nullptr, entry.visible)) {
+                        entry.visible = !entry.visible;
+                    }
+                }
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenuBar();
         }
 
@@ -190,26 +203,23 @@ namespace app {
             ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->WorkSize);
 
             ImGuiID dock_main_id = dockspace_id;
+
             ImGuiID dock_left_id =
                     ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.25f, nullptr, &dock_main_id);
-            ImGuiID dock_bottom_id =
-                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.30f, nullptr, &dock_main_id);
-            ImGuiID dock_right_id =
-                    ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.60f, nullptr, &dock_main_id);
 
             ImGui::DockBuilderDockWindow("Processes", dock_left_id);
-            ImGui::DockBuilderDockWindow("File Info", dock_left_id);
-            ImGui::DockBuilderDockWindow("Memory", dock_right_id);
             ImGui::DockBuilderDockWindow("Disassembly", dock_main_id);
-            ImGui::DockBuilderDockWindow("Binary Diff", dock_bottom_id);
+
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
-        for (const auto& view : m_views) {
-            if (ImGui::Begin(view->get_title().data(), nullptr, ImGuiWindowFlags_NoCollapse)) {
-                view->render();
+        for (auto& entry : m_views) {
+            if (entry.visible) {
+                if (ImGui::Begin(entry.instance->get_title().data(), &entry.visible, ImGuiWindowFlags_NoCollapse)) {
+                    entry.instance->render();
+                }
+                ImGui::End();
             }
-            ImGui::End();
         }
 
         ImGui::End();
