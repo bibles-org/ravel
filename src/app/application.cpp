@@ -17,6 +17,7 @@
 #include "ui/views/file_info.h"
 #include "ui/views/memory.h"
 #include "ui/views/processes.h"
+#include "ui/views/scanner.h"
 
 namespace app {
     struct glfw_manager {
@@ -70,6 +71,7 @@ namespace app {
         m_views.push_back(std::make_unique<ui::memory_view>());
         m_views.push_back(std::make_unique<ui::disassembly_view>());
         m_views.push_back(std::make_unique<ui::diff_view>());
+        m_views.push_back(std::make_unique<ui::scanner_view>());
     }
 
     application::~application() {

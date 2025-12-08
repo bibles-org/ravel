@@ -56,6 +56,8 @@ add_executable(${PROJECT_NAME}
   src/core/parsers/elf_parser.cpp
   src/core/parsers/pe_parser.cpp
 
+  src/core/scanner/scanner.cpp
+
   ${PLATFORM_SOURCES}
 
   src/ui/views/processes.cpp
@@ -63,6 +65,7 @@ add_executable(${PROJECT_NAME}
   src/ui/views/disassembly.cpp
   src/ui/views/file_info.cpp
   src/ui/views/diff_view.cpp
+  src/ui/views/scanner.cpp
 
   src/cli/dispatcher.cpp
   src/cli/repl.cpp
