@@ -9,6 +9,8 @@
 #include <Zydis/Zydis.h>
 #include <imgui.h>
 
+import zydis;
+
 namespace ui {
     class disassembly_view final : public view {
     public:
@@ -18,7 +20,7 @@ namespace ui {
     private:
         struct instruction {
             std::uintptr_t address;
-            std::string text;
+            std::vector<zydis::formatted_token> tokens;
             ZydisDecodedInstruction decoded;
         };
 
@@ -29,7 +31,7 @@ namespace ui {
         void render_region_selector();
         void render_listing();
         void render_instruction(const instruction& instr);
-        [[nodiscard]] ImVec4 get_instruction_color(const ZydisDecodedInstruction& instr) const;
+        ImVec4 get_token_color(const zydis::formatted_token& token) const;
 
         std::vector<core::memory_region> executable_regions;
         std::optional<std::size_t> current_region_idx;

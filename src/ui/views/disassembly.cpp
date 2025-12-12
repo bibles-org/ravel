@@ -112,22 +112,39 @@ namespace ui {
         }
 
         ImGui::SameLine(0.0f, 0.0f);
-        ImGui::TextColored(get_instruction_color(instr.decoded), "%s", instr.text.c_str());
+
+        for (size_t i = 0; i < instr.tokens.size(); ++i) {
+            const auto& token = instr.tokens[i];
+            ImGui::TextColored(get_token_color(token), "%s", token.text.c_str());
+
+            if (i < instr.tokens.size() - 1) {
+                ImGui::SameLine(0.0f, 0.0f);
+            }
+        }
     }
 
-    ImVec4 disassembly_view::get_instruction_color(const ZydisDecodedInstruction& instr) const {
-        switch (instr.meta.category) {
-            case ZYDIS_CATEGORY_CALL:
-                return theme::colors::blue;
-            case ZYDIS_CATEGORY_COND_BR:
+    ImVec4 disassembly_view::get_token_color(const zydis::formatted_token& token) const {
+        if (token.type == ZYDIS_TOKEN_MNEMONIC) {
+            return theme::colors::blue;
+        }
+
+        switch (token.type) {
+            case ZYDIS_TOKEN_REGISTER:
                 return theme::colors::yellow;
-            case ZYDIS_CATEGORY_UNCOND_BR:
-                return theme::colors::red;
-            case ZYDIS_CATEGORY_RET:
-                return theme::colors::mauve;
-            case ZYDIS_CATEGORY_INTERRUPT:
-            case ZYDIS_CATEGORY_SYSTEM:
+            case ZYDIS_TOKEN_IMMEDIATE:
+                return theme::colors::green;
+            case ZYDIS_TOKEN_ADDRESS_ABS:
+            case ZYDIS_TOKEN_ADDRESS_REL:
+            case ZYDIS_TOKEN_SYMBOL:
                 return theme::colors::peach;
+            case ZYDIS_TOKEN_PREFIX:
+                return theme::colors::red;
+            case ZYDIS_TOKEN_DELIMITER:
+            case ZYDIS_TOKEN_PARENTHESIS_OPEN:
+            case ZYDIS_TOKEN_PARENTHESIS_CLOSE:
+                return theme::colors::overlay1;
+            case ZYDIS_TOKEN_DECORATOR:
+                return theme::colors::rosewater;
             default:
                 return theme::colors::text;
         }
@@ -183,31 +200,44 @@ namespace ui {
             return;
         }
 
-        if (instructions.capacity() < static_cast<std::size_t>(index)) {
-            instructions.reserve(static_cast<std::size_t>(index));
+        const std::size_t target = static_cast<std::size_t>(index);
+
+        if (instructions.capacity() < target) {
+            instructions.reserve(target);
         }
 
-        while (instructions.size() < static_cast<std::size_t>(index) && scan_offset < region_data.size()) {
-            const auto* ptr = reinterpret_cast<const std::uint8_t*>(region_data.data() + scan_offset);
-            auto result = zydis::disassemble_format(ptr);
+        while (instructions.size() < target && scan_offset < region_data.size()) {
+            const auto* ptr = reinterpret_cast<const std::uint8_t*>(region_data.data()) + scan_offset;
 
-            instruction new_instr;
-            new_instr.address = executable_regions[*current_region_idx].base_address + scan_offset;
+            auto disassembled = zydis::disassemble(ptr);
 
-            if (result) {
-                auto& [decoded_full, text] = *result;
-                new_instr.decoded = decoded_full.decoded;
-                new_instr.text = std::move(text);
+            instruction instr{};
+            instr.address = executable_regions[*current_region_idx].base_address + scan_offset;
+
+            if (disassembled) {
+                instr.decoded = disassembled->decoded;
+
+                auto tokens = zydis::tokenize(*disassembled, instr.address);
+                if (tokens && !tokens->empty()) {
+                    instr.tokens = std::move(*tokens);
+                } else {
+                    instr.tokens.push_back({ZYDIS_TOKEN_MNEMONIC, "???"});
+                }
             } else {
-                new_instr.text = "db ??";
-                new_instr.decoded.length = 1;
-                new_instr.decoded.meta.category = ZYDIS_CATEGORY_INVALID;
+                instr.tokens.push_back({ZYDIS_TOKEN_MNEMONIC, "db"});
+                instr.tokens.push_back({ZYDIS_TOKEN_WHITESPACE, " "});
+                instr.tokens.push_back(
+                        {ZYDIS_TOKEN_IMMEDIATE, std::format("{:02X}", std::to_integer<int>(region_data[scan_offset]))}
+                );
+
+                instr.decoded.length = 1;
+                instr.decoded.meta.category = ZYDIS_CATEGORY_INVALID;
             }
 
-            new_instr.decoded.length = std::max(std::uint8_t{1}, new_instr.decoded.length);
+            instr.decoded.length = std::max<std::uint8_t>(1, instr.decoded.length);
 
-            scan_offset += new_instr.decoded.length;
-            instructions.push_back(std::move(new_instr));
+            scan_offset += instr.decoded.length;
+            instructions.push_back(std::move(instr));
         }
     }
 
