@@ -18,6 +18,7 @@
 #include "ui/views/memory.h"
 #include "ui/views/processes.h"
 #include "ui/views/scanner.h"
+#include "ui/views/strings.h"
 
 namespace app {
     struct glfw_manager {
@@ -71,6 +72,7 @@ namespace app {
         m_views.push_back({std::make_unique<ui::file_info_view>(), false});
         m_views.push_back({std::make_unique<ui::memory_view>(), false});
         m_views.push_back({std::make_unique<ui::scanner_view>(), false});
+        m_views.push_back({std::make_unique<ui::strings_view>(), false});
         m_views.push_back({std::make_unique<ui::diff_view>(), false});
     }
 
@@ -209,6 +211,7 @@ namespace app {
 
             ImGui::DockBuilderDockWindow("Processes", dock_left_id);
             ImGui::DockBuilderDockWindow("Disassembly", dock_main_id);
+            ImGui::DockBuilderDockWindow("Strings", dock_main_id);
 
             ImGui::DockBuilderFinish(dockspace_id);
         }
