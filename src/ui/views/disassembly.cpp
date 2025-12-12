@@ -1,6 +1,7 @@
 #include <ui/views/disassembly.h>
 
 #include <app/ctx.h>
+#include <core/analysis/strings.h>
 #include <format>
 #include <ranges>
 #include <ui/theme.h>
@@ -121,6 +122,11 @@ namespace ui {
                 ImGui::SameLine(0.0f, 0.0f);
             }
         }
+
+        if (instr.comment) {
+            ImGui::SameLine(0.0f, 20.0f);
+            ImGui::TextColored(theme::colors::overlay1, "; \"%s\"", instr.comment->c_str());
+        }
     }
 
     ImVec4 disassembly_view::get_token_color(const zydis::formatted_token& token) const {
@@ -208,7 +214,6 @@ namespace ui {
 
         while (instructions.size() < target && scan_offset < region_data.size()) {
             const auto* ptr = reinterpret_cast<const std::uint8_t*>(region_data.data()) + scan_offset;
-
             auto disassembled = zydis::disassemble(ptr);
 
             instruction instr{};
@@ -217,12 +222,32 @@ namespace ui {
             if (disassembled) {
                 instr.decoded = disassembled->decoded;
 
-                auto tokens = zydis::tokenize(*disassembled, instr.address);
+                zydis::instruction wrapper_instr;
+                wrapper_instr.decoded = instr.decoded;
+                std::copy(disassembled->operands.begin(), disassembled->operands.end(), wrapper_instr.operands.begin());
+
+                auto tokens = zydis::tokenize(wrapper_instr, instr.address);
+
                 if (tokens && !tokens->empty()) {
                     instr.tokens = std::move(*tokens);
                 } else {
                     instr.tokens.push_back({ZYDIS_TOKEN_MNEMONIC, "???"});
                 }
+
+                if (app::strings && app::strings->count() > 0) {
+                    auto abs_addr = wrapper_instr.get_absolute_address(instr.address);
+
+                    if (abs_addr) {
+                        auto string_ref = app::strings->find_exact(static_cast<std::uintptr_t>(*abs_addr));
+                        if (string_ref) {
+                            std::string s = app::strings->read_string(app::active_target.get(), *string_ref);
+                            if (s.size() > max_comment_length)
+                                s = s.substr(0, max_comment_length - 3) + "...";
+                            instr.comment = s;
+                        }
+                    }
+                }
+
             } else {
                 instr.tokens.push_back({ZYDIS_TOKEN_MNEMONIC, "db"});
                 instr.tokens.push_back({ZYDIS_TOKEN_WHITESPACE, " "});

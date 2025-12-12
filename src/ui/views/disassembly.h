@@ -22,6 +22,7 @@ namespace ui {
             std::uintptr_t address;
             std::vector<zydis::formatted_token> tokens;
             ZydisDecodedInstruction decoded;
+            std::optional<std::string> comment;
         };
 
         void update_target_regions();
@@ -41,5 +42,7 @@ namespace ui {
         std::vector<instruction> instructions;
         std::size_t scan_offset = 0;
         std::uintptr_t selected_addr = 0;
+
+        static constexpr std::size_t max_comment_length = 32;
     };
 } // namespace ui

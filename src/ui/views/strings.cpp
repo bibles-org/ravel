@@ -52,6 +52,7 @@ namespace ui {
 
         ImGui::Text("Total: %zu", cache.size());
         ImGui::SameLine();
+        ImGui::InputText("Filter (Not implemented)", filter_buf, sizeof(filter_buf));
 
         if (ImGui::BeginTable(
                     "StringsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY
