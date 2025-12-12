@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <variant>
@@ -26,9 +27,9 @@ namespace core {
         exact,
         greater,
         less,
-        //changed,
-        //unchanged,
-        //unknown // initial scan
+        // changed,
+        // unchanged,
+        // unknown // initial scan
     };
 
     struct scan_value {
@@ -59,6 +60,8 @@ namespace core {
         scanner& operator=(scanner&&) = delete;
 
         void set_target(target* t);
+
+        std::unique_lock<std::mutex> lock_results() const;
 
         void begin_first_scan(const scan_config& config);
         void begin_next_scan(const scan_config& config);

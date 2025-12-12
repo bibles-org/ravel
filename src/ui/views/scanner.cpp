@@ -96,6 +96,8 @@ namespace ui {
     }
 
     void scanner_view::draw_results() {
+        auto lock = engine.lock_results();
+
         const auto& results = engine.get_results();
         if (results.empty()) {
             ImGui::TextDisabled("No results.");

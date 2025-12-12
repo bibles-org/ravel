@@ -121,6 +121,10 @@ namespace core {
         active_target = t;
     }
 
+    std::unique_lock<std::mutex> scanner::lock_results() const {
+        return std::unique_lock(results_mutex);
+    }
+
     void scanner::cancel() {
         if (scanning) {
             cancel_req = true;
