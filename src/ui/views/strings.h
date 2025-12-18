@@ -12,14 +12,10 @@ namespace ui {
         void render() override;
 
     private:
-        void refresh();
-
         core::analysis::string_scan_config config;
-        std::vector<core::analysis::string_ref> cache;
-        bool needs_refresh = true;
 
-        char filter_buf[128]{};
-        bool use_filter = false;
+        std::vector<core::analysis::string_ref> batch_buffer;
+        std::size_t total_count = 0;
     };
 
 } // namespace ui

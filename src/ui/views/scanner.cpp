@@ -117,7 +117,7 @@ namespace ui {
 
             while (clipper.Step()) {
                 for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                    const auto& res = results[i];
+                    const auto& res = results[static_cast<std::size_t>(i)];
                     ImGui::TableNextRow();
 
                     ImGui::TableSetColumnIndex(0);

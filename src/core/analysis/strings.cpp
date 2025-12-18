@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <ranges>
 
 namespace core::analysis {
@@ -35,8 +36,9 @@ namespace core::analysis {
     }
 
     void strings_analyzer::clear() {
-        std::lock_guard lock(results_mutex);
+        std::unique_lock lock(results_mutex);
         results.clear();
+        results.shrink_to_fit();
     }
 
     bool strings_analyzer::is_scanning() const {
@@ -48,19 +50,34 @@ namespace core::analysis {
     }
 
     std::size_t strings_analyzer::count() const {
-        std::lock_guard lock(results_mutex);
+        std::shared_lock lock(results_mutex);
         return results.size();
     }
 
-    std::vector<string_ref> strings_analyzer::get_results_copy() const {
-        std::lock_guard lock(results_mutex);
-        return results;
+    std::size_t strings_analyzer::get_batch(std::size_t start_index, std::span<string_ref> out_buffer) const {
+        std::shared_lock lock(results_mutex);
+
+        if (start_index >= results.size()) {
+            return 0;
+        }
+
+        std::size_t available = results.size() - start_index;
+        std::size_t count = std::min(available, out_buffer.size());
+
+        std::memcpy(out_buffer.data(), results.data() + start_index, count * sizeof(string_ref));
+
+        return count;
     }
 
     std::optional<string_ref> strings_analyzer::find_exact(std::uintptr_t address) const {
-        std::lock_guard lock(results_mutex);
+        std::shared_lock lock(results_mutex);
 
-        auto it = std::ranges::lower_bound(results, address, {}, &string_ref::address);
+        auto it = std::lower_bound(
+                results.begin(), results.end(), address, [](const string_ref& ref, std::uintptr_t addr) {
+                    return ref.address < addr;
+                }
+        );
+
         if (it != results.end() && it->address == address) {
             return *it;
         }
@@ -71,15 +88,16 @@ namespace core::analysis {
         if (!t)
             return {};
 
-        // cap max length for ui display purposes
-        std::size_t len = std::min<std::size_t>(ref.length, 256);
-        std::vector<std::byte> buffer(len);
+        constexpr std::size_t max_display_len = 256;
+        std::size_t len = std::min<std::size_t>(ref.length, max_display_len);
 
-        if (t->read_memory(ref.address, buffer)) {
-            std::string s;
-            s.reserve(len);
-            for (auto b : buffer) {
-                s.push_back(static_cast<char>(b));
+        std::string s;
+        s.resize(len);
+
+        if (t->read_memory(ref.address, std::as_writable_bytes(std::span(s)))) {
+            for (char& c : s) {
+                if (static_cast<unsigned char>(c) < 0x20 && c != '\t')
+                    c = '.';
             }
             return s;
         }
@@ -104,7 +122,8 @@ namespace core::analysis {
             bool is_exec = r.permission.find('x') != std::string::npos;
             if (is_exec && !config.scan_executable)
                 return true;
-            return false;
+            bool is_readable = r.permission.find('r') != std::string::npos;
+            return !is_readable;
         });
 
         std::size_t total_bytes = 0;
@@ -112,10 +131,11 @@ namespace core::analysis {
             total_bytes += r.size;
 
         std::size_t bytes_processed = 0;
-        std::vector<string_ref> local_results;
-        local_results.reserve(10000);
 
-        const std::size_t chunk_size = 1024 * 1024; // 1MB chunks
+        std::vector<string_ref> local_results;
+        local_results.reserve(100000);
+
+        const std::size_t chunk_size = 64 * 1024;
         std::vector<std::byte> buffer(chunk_size);
 
         for (const auto& r : regions) {
@@ -133,14 +153,16 @@ namespace core::analysis {
                     std::size_t str_start = 0;
                     bool in_string = false;
 
-                    for (std::size_t i = 0; i < read_size; ++i) {
-                        char c = static_cast<char>(view[i]);
-                        // standard printable ascii + tab
+                    const std::byte* ptr = view.data();
+                    const std::byte* end = ptr + read_size;
+
+                    for (const std::byte* p = ptr; p < end; ++p) {
+                        unsigned char c = static_cast<unsigned char>(*p);
                         bool is_printable = (c >= 0x20 && c <= 0x7E) || c == '\t';
 
                         if (in_string) {
                             if (!is_printable) {
-                                std::size_t len = i - str_start;
+                                std::size_t len = static_cast<std::size_t>(p - ptr) - str_start;
                                 if (len >= config.min_length) {
                                     local_results.push_back({current + str_start, static_cast<uint32_t>(len)});
                                 }
@@ -149,7 +171,7 @@ namespace core::analysis {
                         } else {
                             if (is_printable) {
                                 in_string = true;
-                                str_start = i;
+                                str_start = static_cast<std::size_t>(p - ptr);
                             }
                         }
                     }
@@ -167,18 +189,23 @@ namespace core::analysis {
                 bytes_processed += read_size;
 
                 if (total_bytes > 0) {
-                    progress_val = static_cast<float>(bytes_processed) / static_cast<float>(total_bytes);
+                    if (bytes_processed % (1024 * 1024) == 0) {
+                        progress_val.store(
+                                static_cast<float>(bytes_processed) / static_cast<float>(total_bytes),
+                                std::memory_order_relaxed
+                        );
+                    }
                 }
             }
         }
 
         if (!cancel_req) {
-            std::lock_guard lock(results_mutex);
-            results = std::move(local_results);
-
-            std::ranges::sort(results, [](const auto& a, const auto& b) {
+            std::sort(local_results.begin(), local_results.end(), [](const auto& a, const auto& b) {
                 return a.address < b.address;
             });
+
+            std::unique_lock lock(results_mutex);
+            results = std::move(local_results);
         }
 
         scanning = false;

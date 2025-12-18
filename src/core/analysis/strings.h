@@ -3,9 +3,10 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -17,10 +18,6 @@ namespace core::analysis {
     struct string_ref {
         std::uintptr_t address;
         std::uint32_t length;
-
-        bool operator<(const string_ref& other) const {
-            return address < other.address;
-        }
     };
 
     struct string_scan_config {
@@ -33,6 +30,9 @@ namespace core::analysis {
         strings_analyzer();
         ~strings_analyzer();
 
+        strings_analyzer(const strings_analyzer&) = delete;
+        strings_analyzer& operator=(const strings_analyzer&) = delete;
+
         void scan(target* t, string_scan_config config = {});
         void cancel();
         void clear();
@@ -41,7 +41,7 @@ namespace core::analysis {
         [[nodiscard]] float progress() const;
         [[nodiscard]] std::size_t count() const;
 
-        [[nodiscard]] std::vector<string_ref> get_results_copy() const;
+        std::size_t get_batch(std::size_t start_index, std::span<string_ref> out_buffer) const;
 
         [[nodiscard]] std::optional<string_ref> find_exact(std::uintptr_t address) const;
 
@@ -50,7 +50,7 @@ namespace core::analysis {
     private:
         void worker(target* t, string_scan_config config);
 
-        mutable std::mutex results_mutex;
+        mutable std::shared_mutex results_mutex;
         std::vector<string_ref> results;
 
         std::jthread scan_thread;

@@ -277,7 +277,7 @@ namespace ui {
         type_id type = type_id::u32;
 
         while (off < blk.size) {
-            field f{.offset = off, .type = type, .size = type_size(type)};
+            field f{.offset = off, .type = type, .size = type_size(type), .valid = false, .meta = std::nullopt};
 
             if (off + f.size > blk.size)
                 f.size = blk.size - off;
