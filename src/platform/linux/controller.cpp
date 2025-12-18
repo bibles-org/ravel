@@ -233,4 +233,43 @@ namespace platform {
 
         return {};
     }
+
+    std::expected<void, core::error_code>
+    linux_controller::write_memory(std::uint32_t pid, std::uintptr_t address, std::span<const std::byte> buffer) {
+        if (pid == 0) {
+            return std::unexpected(core::error_code::process_not_found);
+        }
+
+        iovec local_iov;
+        local_iov.iov_base = const_cast<std::byte*>(buffer.data());
+        local_iov.iov_len = buffer.size();
+
+        iovec remote_iov;
+        remote_iov.iov_base = reinterpret_cast<void*>(address);
+        remote_iov.iov_len = buffer.size();
+
+        ssize_t bytes_written = process_vm_writev(static_cast<pid_t>(pid), &local_iov, 1, &remote_iov, 1, 0);
+
+        if (bytes_written == -1) {
+            switch (errno) {
+                case EPERM:
+                case EACCES:
+                    return std::unexpected(core::error_code::permission_denied);
+                case ESRCH:
+                    return std::unexpected(core::error_code::process_not_found);
+                case EFAULT:
+                    return std::unexpected(core::error_code::invalid_address);
+                case ENOMEM:
+                    return std::unexpected(core::error_code::out_of_memory);
+                default:
+                    return std::unexpected(core::error_code::write_failed);
+            }
+        }
+
+        if (static_cast<size_t>(bytes_written) != buffer.size()) {
+            return std::unexpected(core::error_code::partial_read);
+        }
+
+        return {};
+    }
 } // namespace platform

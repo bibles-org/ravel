@@ -20,6 +20,8 @@ namespace core {
 
         [[nodiscard]] std::expected<void, error_code>
         read_memory(std::uintptr_t address, std::span<std::byte> buffer) override;
+        [[nodiscard]] std::expected<void, error_code>
+        write_memory(std::uintptr_t address, std::span<const std::byte> buffer) override;
         [[nodiscard]] std::expected<std::vector<memory_region>, error_code> get_memory_regions() override;
         [[nodiscard]] bool is_live() const override;
         [[nodiscard]] std::string get_name() const override;

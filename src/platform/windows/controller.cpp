@@ -1,11 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
+#include <windows.h>
 
-#include <platform/windows/controller.h>
 #include <core/process.h>
+#include <platform/windows/controller.h>
 #include <util/expected.h>
 
 #include <algorithm>
@@ -122,7 +122,9 @@ namespace platform {
             detach(0);
         }
 
-        m_process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_VM_OPERATION, FALSE, pid);
+        m_process_handle = OpenProcess(
+                PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION, FALSE, pid
+        );
 
         if (!m_process_handle) {
             return std::unexpected(to_error_code(GetLastError()));
@@ -202,6 +204,25 @@ namespace platform {
         }
 
         if (bytes_read != buffer.size()) {
+            return std::unexpected(core::error_code::partial_read);
+        }
+        return {};
+    }
+
+    std::expected<void, core::error_code>
+    windows_controller::write_memory(std::uint32_t /*pid*/, std::uintptr_t address, std::span<const std::byte> buffer) {
+        if (!m_process_handle) {
+            return std::unexpected(core::error_code::process_not_found);
+        }
+
+        SIZE_T bytes_written = 0;
+        if (!WriteProcessMemory(
+                    m_process_handle, reinterpret_cast<LPVOID>(address), buffer.data(), buffer.size(), &bytes_written
+            )) {
+            return std::unexpected(to_error_code(GetLastError()));
+        }
+
+        if (bytes_written != buffer.size()) {
             return std::unexpected(core::error_code::partial_read);
         }
         return {};

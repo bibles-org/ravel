@@ -26,6 +26,8 @@ namespace core {
 
         [[nodiscard]] virtual std::expected<void, error_code>
         read_memory(std::uintptr_t address, std::span<std::byte> buffer) = 0;
+        [[nodiscard]] virtual std::expected<void, error_code>
+        write_memory(std::uintptr_t address, std::span<const std::byte> buffer) = 0;
         [[nodiscard]] virtual std::expected<std::vector<memory_region>, error_code> get_memory_regions() = 0;
         [[nodiscard]] virtual bool is_live() const = 0;
         [[nodiscard]] virtual std::string get_name() const = 0;

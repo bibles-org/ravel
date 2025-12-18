@@ -1,7 +1,11 @@
 #include "core/scanner/scanner.h"
 #include <app/ctx.h>
 #include <imgui.h>
+#include <ui/theme.h>
 #include <ui/views/scanner.h>
+
+#include <cstring>
+#include <format>
 
 namespace ui {
     const char* type_names[] = {"u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "f32", "f64"};
@@ -16,6 +20,8 @@ namespace ui {
             engine.set_target(last_target);
             engine.reset();
             is_first_scan = true;
+            selected_result_idx.reset();
+            write_message.clear();
         }
 
         if (!last_target) {
@@ -37,10 +43,14 @@ namespace ui {
                 ImGui::Separator();
             }
 
-            if (ImGui::BeginChild("ResultsList", ImVec2(0, 0))) {
+            if (ImGui::BeginChild("ResultsList", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2.0f))) {
                 draw_results();
             }
             ImGui::EndChild();
+
+            if (last_target && last_target->is_live() && selected_result_idx) {
+                draw_editor();
+            }
         }
         ImGui::EndChild();
     }
@@ -82,6 +92,8 @@ namespace ui {
                 if (ImGui::Button("Reset / New Scan", ImVec2(-1, 0))) {
                     engine.reset();
                     is_first_scan = true;
+                    selected_result_idx.reset();
+                    write_message.clear();
                 }
             }
         }
@@ -104,9 +116,6 @@ namespace ui {
             return;
         }
 
-        ImGuiListClipper clipper;
-        clipper.Begin(static_cast<int>(results.size()));
-
         const ImGuiTableFlags flags =
                 ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
 
@@ -115,28 +124,87 @@ namespace ui {
             ImGui::TableSetupColumn("Value");
             ImGui::TableHeadersRow();
 
+            ImGuiListClipper clipper;
+            clipper.Begin(static_cast<int>(results.size()));
             while (clipper.Step()) {
                 for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                     const auto& res = results[static_cast<std::size_t>(i)];
                     ImGui::TableNextRow();
+                    ImGui::PushID(i);
 
                     ImGui::TableSetColumnIndex(0);
+                    char label[32];
+                    std::snprintf(label, sizeof(label), "##selectable%d", i);
+
+                    const bool is_selected = selected_result_idx && *selected_result_idx == static_cast<std::size_t>(i);
+                    if (ImGui::Selectable(
+                                label, is_selected,
+                                ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap
+                        )) {
+                        selected_result_idx = static_cast<std::size_t>(i);
+                        write_message.clear();
+                        std::vector<std::byte> buf(core::scanner::type_size(config.data_type));
+                        if (auto read_res = app::active_target->read_memory(res.address, buf); read_res) {
+                            std::string val_str = core::scanner::format_value(buf, config.data_type);
+                            std::strncpy(write_buf, val_str.c_str(), sizeof(write_buf) - 1);
+                            write_buf[sizeof(write_buf) - 1] = '\0';
+                        } else {
+                            write_buf[0] = '\0';
+                        }
+                    }
+
+                    ImGui::SameLine();
                     ImGui::Text("0x%llX", static_cast<unsigned long long>(res.address));
 
                     ImGui::TableSetColumnIndex(1);
                     std::vector<std::byte> buf(core::scanner::type_size(config.data_type));
-                    if (app::active_target->read_memory(res.address, buf)) {
+                    if (auto read_res = app::active_target->read_memory(res.address, buf); read_res) {
                         std::string val_str = core::scanner::format_value(buf, config.data_type);
                         ImGui::Text("%s", val_str.c_str());
                     } else {
                         ImGui::TextDisabled("??");
                     }
+                    ImGui::PopID();
                 }
             }
-
+            clipper.End();
             ImGui::EndTable();
         }
-
-        clipper.End();
     }
+
+    void scanner_view::draw_editor() {
+        auto lock = engine.lock_results();
+        const auto& results = engine.get_results();
+        if (!selected_result_idx || *selected_result_idx >= results.size()) {
+            return;
+        }
+
+        const auto& res = results[*selected_result_idx];
+
+        ImGui::Separator();
+        ImGui::Text("Edit value at 0x%llX", static_cast<unsigned long long>(res.address));
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(150.f);
+        ImGui::InputText("##write_input", write_buf, sizeof(write_buf));
+        ImGui::SameLine();
+
+        if (ImGui::Button("Write")) {
+            write_message.clear();
+            auto new_bytes = core::scanner::parse_input(write_buf, config.data_type);
+            if (new_bytes) {
+                if (auto write_res = last_target->write_memory(res.address, *new_bytes); !write_res) {
+                    write_message = "Write failed.";
+                }
+            } else {
+                write_message = "Invalid value format.";
+            }
+        }
+
+        if (!write_message.empty()) {
+            ImGui::SameLine();
+            ImGui::TextColored(theme::colors::red, "%s", write_message.c_str());
+        }
+    }
+
 } // namespace ui

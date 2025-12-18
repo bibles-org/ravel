@@ -72,6 +72,13 @@ namespace core {
         return m_controller->read_memory(m_attached_pid, address, buffer);
     }
 
+    std::expected<void, error_code> process::write_memory(std::uintptr_t address, std::span<const std::byte> buffer) {
+        if (!is_attached()) {
+            return std::unexpected(error_code::process_not_found);
+        }
+        return m_controller->write_memory(m_attached_pid, address, buffer);
+    }
+
     bool process::is_live() const {
         return true;
     }

@@ -19,6 +19,9 @@ namespace platform {
         [[nodiscard]] std::expected<void, core::error_code>
         read_memory(std::uint32_t pid, std::uintptr_t address, std::span<std::byte> buffer) override;
 
+        [[nodiscard]] std::expected<void, core::error_code>
+        write_memory(std::uint32_t pid, std::uintptr_t address, std::span<const std::byte> buffer) override;
+
     private:
         // /proc/[pid]/mem
         int m_mem_fd = -1;

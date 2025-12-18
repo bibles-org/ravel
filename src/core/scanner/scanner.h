@@ -76,6 +76,7 @@ namespace core {
         const std::vector<scan_result>& get_results() const;
         static std::size_t type_size(scan_data_type type);
         static std::string format_value(const std::vector<std::byte>& data, scan_data_type type);
+        static std::optional<std::vector<std::byte>> parse_input(const std::string& input, scan_data_type type);
 
     private:
         target* active_target;

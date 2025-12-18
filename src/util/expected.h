@@ -9,6 +9,7 @@ namespace core {
         invalid_address,
         out_of_memory,
         read_failed,
+        write_failed,
         partial_read,
 
         ptrace_attach_failed,

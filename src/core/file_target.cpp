@@ -70,6 +70,11 @@ namespace core {
         return {};
     }
 
+    std::expected<void, error_code>
+    file_target::write_memory(std::uintptr_t /*address*/, std::span<const std::byte> /*buffer*/) {
+        return std::unexpected(error_code::permission_denied); // cannot write to file target
+    }
+
     std::expected<std::vector<memory_region>, error_code> file_target::get_memory_regions() {
         return m_parser->get_sections();
     }

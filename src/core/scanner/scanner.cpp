@@ -14,39 +14,6 @@ namespace core {
             return val;
         }
 
-        std::optional<std::vector<std::byte>> parse_input(const std::string& input, scan_data_type type) {
-            std::vector<std::byte> buffer(scanner::type_size(type));
-
-            try {
-                if (type == scan_data_type::f32) {
-                    float v = std::stof(input);
-                    std::memcpy(buffer.data(), &v, sizeof(v));
-                } else if (type == scan_data_type::f64) {
-                    double v = std::stod(input);
-                    std::memcpy(buffer.data(), &v, sizeof(v));
-                }
-
-                else if (type == scan_data_type::u8 || type == scan_data_type::i8) {
-                    // chars to ensure they are treated as number
-                    int v = std::stoi(input, nullptr, 0);
-                    if (type == scan_data_type::u8) {
-                        auto uv = static_cast<std::uint8_t>(v);
-                        std::memcpy(buffer.data(), &uv, sizeof(uv));
-                    } else {
-                        auto sv = static_cast<std::int8_t>(v);
-                        std::memcpy(buffer.data(), &sv, sizeof(sv));
-                    }
-                } else {
-                    std::uint64_t v = std::stoull(input, nullptr, 0);
-                    std::memcpy(buffer.data(), &v, buffer.size());
-                }
-            } catch (...) {
-                return std::nullopt;
-            }
-
-            return buffer;
-        }
-
         template <typename T>
         struct exact_matcher {
             T target;
@@ -108,6 +75,39 @@ namespace core {
             }
         }
     } // namespace
+
+    std::optional<std::vector<std::byte>> scanner::parse_input(const std::string& input, scan_data_type type) {
+        std::vector<std::byte> buffer(scanner::type_size(type));
+
+        try {
+            if (type == scan_data_type::f32) {
+                float v = std::stof(input);
+                std::memcpy(buffer.data(), &v, sizeof(v));
+            } else if (type == scan_data_type::f64) {
+                double v = std::stod(input);
+                std::memcpy(buffer.data(), &v, sizeof(v));
+            }
+
+            else if (type == scan_data_type::u8 || type == scan_data_type::i8) {
+                // chars to ensure they are treated as number
+                int v = std::stoi(input, nullptr, 0);
+                if (type == scan_data_type::u8) {
+                    auto uv = static_cast<std::uint8_t>(v);
+                    std::memcpy(buffer.data(), &uv, sizeof(uv));
+                } else {
+                    auto sv = static_cast<std::int8_t>(v);
+                    std::memcpy(buffer.data(), &sv, sizeof(sv));
+                }
+            } else {
+                std::uint64_t v = std::stoull(input, nullptr, 0);
+                std::memcpy(buffer.data(), &v, buffer.size());
+            }
+        } catch (...) {
+            return std::nullopt;
+        }
+
+        return buffer;
+    }
 
     scanner::scanner(target* t) : active_target(t) {
     }
