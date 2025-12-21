@@ -40,9 +40,9 @@ namespace ui {
             if (ImGui::Button("Stop")) {
                 analyzer.cancel();
             }
-        } else {
-            total_count = analyzer.count();
         }
+
+        total_count = analyzer.count();
 
         ImGui::Separator();
 
@@ -86,6 +86,12 @@ namespace ui {
                     if (text.size() > 100)
                         text = text.substr(0, 97) + "...";
                     ImGui::TextUnformatted(text.c_str());
+                }
+
+                if (fetched < count) {
+                    for (std::size_t k = fetched; k < count; ++k) {
+                        ImGui::TableNextRow();
+                    }
                 }
             }
 
