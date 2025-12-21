@@ -69,6 +69,7 @@ add_executable(${PROJECT_NAME}
   src/ui/views/diff_view.cpp
   src/ui/views/scanner.cpp
   src/ui/views/strings.cpp
+  src/ui/views/xref_view.cpp
 
   src/cli/dispatcher.cpp
   src/cli/repl.cpp

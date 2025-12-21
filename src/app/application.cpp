@@ -19,6 +19,7 @@
 #include "ui/views/processes.h"
 #include "ui/views/scanner.h"
 #include "ui/views/strings.h"
+#include "ui/views/xref_view.h"
 
 namespace app {
     struct glfw_manager {
@@ -74,6 +75,7 @@ namespace app {
         m_views.push_back({std::make_unique<ui::scanner_view>(), false});
         m_views.push_back({std::make_unique<ui::strings_view>(), false});
         m_views.push_back({std::make_unique<ui::diff_view>(), false});
+        m_views.push_back({std::make_unique<ui::xref_view>(), false});
     }
 
     application::~application() {
