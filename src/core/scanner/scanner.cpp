@@ -3,6 +3,7 @@
 #include <mutex>
 #include <optional>
 #include <vector>
+#include <format>
 #include "core/target.h"
 
 namespace core {
