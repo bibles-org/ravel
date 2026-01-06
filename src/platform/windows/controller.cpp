@@ -1,8 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
-#include <windows.h>
 
 #include <core/process.h>
 #include <platform/windows/controller.h>
