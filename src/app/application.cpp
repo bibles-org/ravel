@@ -1,3 +1,4 @@
+// FILE: src/app/application.cpp
 #include "application.h"
 
 #include <GLFW/glfw3.h>
@@ -10,6 +11,7 @@
 #include <imgui_internal.h>
 #include <print>
 
+#include "ui/icons.h"
 #include "ui/theme.h"
 #include "ui/view.h"
 #include "ui/views/diff_view.h"
@@ -128,7 +130,12 @@ namespace app {
         if (ImGui::BeginPopupModal("Open File", &m_show_open_file_popup, ImGuiWindowFlags_AlwaysAutoResize)) {
             static char path_buf[1024] = "";
             ImGui::InputText("File Path", path_buf, sizeof(path_buf));
-            if (ImGui::Button("Open")) {
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::Button("Open", ImVec2(120, 0))) {
                 auto file_target = core::file_target::create(path_buf);
                 if (file_target) {
                     active_target = std::make_unique<core::file_target>(std::move(*file_target));
@@ -137,7 +144,7 @@ namespace app {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel")) {
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 m_show_open_file_popup = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -145,18 +152,114 @@ namespace app {
         }
     }
 
+    void application::render_top_bar() {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 8.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12.0f, 0.0f));
+
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::colors::mantle);
+        ImGui::PushStyleColor(ImGuiCol_Border, theme::colors::surface0);
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
+
+        const float bar_height = 46.0f;
+
+        if (ImGui::BeginChild("TopBar", ImVec2(0, bar_height), true, ImGuiWindowFlags_NoScrollbar)) {
+            ImGui::AlignTextToFramePadding();
+            ImGui::PushStyleColor(ImGuiCol_Text, theme::colors::primary);
+            ImGui::Text("RAVEL");
+            ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            auto menu_btn = [&](const char* label, const char* popup_id, const char* icon = nullptr) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::colors::surface1);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::colors::surface2);
+
+                std::string btn_text = icon ? std::format("{}  {}", icon, label) : label;
+
+                if (ImGui::Button(btn_text.c_str())) {
+                    ImGui::OpenPopup(popup_id);
+                }
+
+                ImGui::PopStyleColor(3);
+            };
+
+            auto push_popup_style = []() {
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(14.0f, 14.0f));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 10.0f)); // Wide spacing
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 6.0f));
+                ImGui::PushStyleColor(ImGuiCol_PopupBg, theme::colors::surface0);
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, theme::colors::surface1);
+                ImGui::PushStyleColor(ImGuiCol_Separator, theme::colors::surface2);
+            };
+
+            auto pop_popup_style = []() {
+                ImGui::PopStyleColor(3);
+                ImGui::PopStyleVar(3);
+            };
+
+            menu_btn("File", "FileMenuPopup", ui::icons::folder);
+
+            push_popup_style();
+            if (ImGui::BeginPopup("FileMenuPopup")) {
+                if (ImGui::MenuItem(std::format("{}  Open File...", ui::icons::folder).c_str())) {
+                    m_show_open_file_popup = true;
+                }
+                if (ImGui::MenuItem("Close Target", nullptr, false, active_target != nullptr)) {
+                    active_target.reset();
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                if (ImGui::MenuItem(std::format("{}  Exit", ui::icons::close).c_str())) {
+                    glfwSetWindowShouldClose(m_window_handle.get(), 1);
+                }
+                ImGui::EndPopup();
+            }
+            pop_popup_style();
+
+            ImGui::SameLine();
+
+            menu_btn("Views", "ViewsMenuPopup", ui::icons::layers);
+
+            push_popup_style();
+            if (ImGui::BeginPopup("ViewsMenuPopup")) {
+                for (auto& entry : m_views) {
+                    bool visible = entry.visible;
+                    if (ImGui::MenuItem(entry.instance->get_title().data(), nullptr, &visible)) {
+                        entry.visible = visible;
+                    }
+                }
+                ImGui::EndPopup();
+            }
+            pop_popup_style();
+        }
+        ImGui::EndChild();
+
+        ImGui::PopStyleVar(4);
+        ImGui::PopStyleColor(2);
+    }
+
     void application::render_ui() {
         static bool dockspace_open = true;
         static bool first_time = true;
         static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
 
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
+
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
         window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                         ImGuiWindowFlags_NoMove;
         window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
@@ -168,33 +271,7 @@ namespace app {
         ImGui::Begin("DockSpace", &dockspace_open, window_flags);
         ImGui::PopStyleVar(3);
 
-        if (ImGui::BeginMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Open File...")) {
-                    m_show_open_file_popup = true;
-                }
-                if (ImGui::MenuItem("Close Target", nullptr, false, active_target != nullptr)) {
-                    active_target.reset();
-                }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Exit")) {
-                    glfwSetWindowShouldClose(m_window_handle.get(), 1);
-                }
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Views")) {
-                for (auto& entry : m_views) {
-                    if (ImGui::MenuItem(entry.instance->get_title().data(), nullptr, entry.visible)) {
-                        entry.visible = !entry.visible;
-                    }
-                }
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
-
+        render_top_bar();
         show_open_file_popup();
 
         ImGuiID dockspace_id = ImGui::GetID("RavelDockspace");
@@ -207,7 +284,6 @@ namespace app {
             ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->WorkSize);
 
             ImGuiID dock_main_id = dockspace_id;
-
             ImGuiID dock_left_id =
                     ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.25f, nullptr, &dock_main_id);
 

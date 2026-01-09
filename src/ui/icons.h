@@ -1,6 +1,12 @@
 #pragma once
 
 namespace ui::icons {
+    constexpr const char* folder = "\xef\x81\xbb";
+    constexpr const char* layers = "\xee\xba\xa8";
+    constexpr const char* cogs = "\xef\x82\x85";
+    constexpr const char* close = "\xef\x80\x8d";
+    constexpr const char* link = "\xef\x83\x81";
+
     constexpr const char* process = "\xef\x8b\x9b";
     constexpr const char* disassembly = "\xef\x87\x89";
     constexpr const char* file_info = "\xef\x84\xa9";

@@ -44,6 +44,7 @@ namespace app {
         };
 
         void render_ui();
+        void render_top_bar();
         void show_open_file_popup();
 
         std::unique_ptr<GLFWwindow, glfw_deleter> m_window_handle;
