@@ -4,9 +4,10 @@
 #include <core/process.h>
 #include <format>
 #include <ui/theme.h>
+#include <ui/icons.h>
 
 namespace ui {
-    processes_view::processes_view() : view("Processes") {
+    processes_view::processes_view() : view("Processes", icons::process) {
     }
 
     void processes_view::render() {

@@ -13,6 +13,7 @@
 #include <core/target.h>
 #include <imgui.h>
 #include <ui/theme.h>
+#include "ui/icons.h"
 
 import zydis;
 
@@ -57,7 +58,7 @@ namespace ui {
         }
     } // namespace
 
-    xref_view::xref_view() : view("Cross References") {
+    xref_view::xref_view() : view("Cross References", icons::xref) {
     }
 
     xref_view::~xref_view() {

@@ -6,12 +6,13 @@
 
 #include <cstring>
 #include <format>
+#include "ui/icons.h"
 
 namespace ui {
     const char* type_names[] = {"u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "f32", "f64"};
     const char* cmp_names[] = {"Exact", "Greater", "Less"};
 
-    scanner_view::scanner_view() : view("Scanner"), engine(nullptr) {
+    scanner_view::scanner_view() : view("Scanner", icons::disassembly), engine(nullptr) {
     }
 
     void scanner_view::render() {

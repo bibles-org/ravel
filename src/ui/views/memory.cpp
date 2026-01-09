@@ -9,6 +9,7 @@
 #include <app/ctx.h>
 #include <imgui.h>
 #include <ui/theme.h>
+#include "ui/icons.h"
 
 namespace ui {
     namespace {
@@ -44,7 +45,7 @@ namespace ui {
         }
     } // namespace
 
-    memory_view::memory_view() : view("Memory") {
+    memory_view::memory_view() : view("Memory", icons::memory) {
         add_block("Default");
         select_block(0);
     }

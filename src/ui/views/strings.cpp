@@ -4,10 +4,11 @@
 #include <format>
 #include <imgui.h>
 #include <ui/theme.h>
+#include "ui/icons.h"
 
 namespace ui {
 
-    strings_view::strings_view() : view("Strings") {
+    strings_view::strings_view() : view("Strings", icons::strings) {
         batch_buffer.reserve(128);
     }
 

@@ -4,12 +4,13 @@
 #include <core/analysis/strings.h>
 #include <format>
 #include <ranges>
+#include <ui/icons.h>
 #include <ui/theme.h>
 
 import zydis;
 
 namespace ui {
-    disassembly_view::disassembly_view() : view("Disassembly") {
+    disassembly_view::disassembly_view() : view("Disassembly", icons::disassembly) {
         zydis::init(MACHINE_MODE_LONG_64, STACK_WIDTH_64, FORMATTER_STYLE_INTEL);
     }
 

@@ -4,9 +4,10 @@
 #include <core/file_target.h>
 #include <format>
 #include <imgui.h>
+#include "ui/icons.h"
 
 namespace ui {
-    file_info_view::file_info_view() : view("File Info") {
+    file_info_view::file_info_view() : view("File Info", icons::file_info) {
     }
 
     void file_info_view::render() {

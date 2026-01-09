@@ -1,5 +1,6 @@
 #include "diff_view.h"
 #include "../theme.h"
+#include "ui/icons.h"
 
 #include <imgui.h>
 
@@ -59,7 +60,7 @@ namespace ui {
 
     } // namespace
 
-    diff_view::diff_view() : view("Binary Diff") {
+    diff_view::diff_view() : view("Binary Diff", icons::diff) {
     }
 
     void diff_view::render() {

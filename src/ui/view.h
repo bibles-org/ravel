@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <string>
 #include <string_view>
 
@@ -15,7 +16,8 @@ namespace ui {
         virtual void render() = 0;
 
     protected:
-        explicit view(std::string title) : m_title(std::move(title)) {
+        view(std::string_view title, std::string_view icon) {
+            m_title = std::format("{} {}###{}", icon, title, title);
         }
 
         view(const view&) = delete;
