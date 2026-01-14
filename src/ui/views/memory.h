@@ -71,6 +71,8 @@ namespace ui {
         [[nodiscard]] static std::size_t type_size(type_id type);
         [[nodiscard]] static const char* type_name(type_id type);
 
+        [[nodiscard]] std::optional<std::uintptr_t> eval_address(std::string_view expr);
+
         std::vector<std::unique_ptr<block>> blocks;
         std::optional<std::size_t> active_idx;
         core::target* target = nullptr;
@@ -78,7 +80,7 @@ namespace ui {
         std::vector<std::byte> cache;
         bool cache_valid = false;
 
-        char addr_buf[64]{};
+        char addr_buf[128]{};
         char name_buf[64]{};
         bool show_create = false;
         bool auto_refresh = false;

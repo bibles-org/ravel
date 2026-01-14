@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cstring>
+#include <filesystem>
 #include <format>
 #include <ranges>
 
@@ -22,26 +23,31 @@ namespace ui {
             return val;
         }
 
-        std::expected<std::uintptr_t, bool> parse_addr(std::string_view s) {
-            auto start = s.find_first_not_of(" \t");
-            if (start == std::string_view::npos)
-                return std::unexpected(false);
-            s.remove_prefix(start);
+        std::string_view trim(std::string_view s) {
+            auto first = s.find_first_not_of(" \t");
+            if (first == std::string_view::npos)
+                return {};
+            auto last = s.find_last_not_of(" \t");
+            return s.substr(first, last - first + 1);
+        }
 
-            auto end = s.find_last_not_of(" \t");
-            if (end != std::string_view::npos)
-                s = s.substr(0, end + 1);
+        std::optional<std::uintptr_t> parse_hex(std::string_view s) {
+            s = trim(s);
+            if (s.empty())
+                return std::nullopt;
 
             if (s.starts_with("0x") || s.starts_with("0X"))
                 s.remove_prefix(2);
+
             if (s.empty())
-                return std::unexpected(false);
+                return std::nullopt;
 
             std::uintptr_t val = 0;
             auto res = std::from_chars(s.data(), s.data() + s.size(), val, 16);
-            if (res.ec != std::errc{})
-                return std::unexpected(false);
-            return val;
+            if (res.ec == std::errc() && res.ptr == s.data() + s.size()) {
+                return val;
+            }
+            return std::nullopt;
         }
     } // namespace
 
@@ -70,6 +76,76 @@ namespace ui {
         }
     }
 
+    std::optional<std::uintptr_t> memory_view::eval_address(std::string_view expr) {
+        expr = trim(expr);
+        if (expr.empty())
+            return std::nullopt;
+
+        // find the split point for + or - at the top level
+        int depth = 0;
+        std::size_t split_pos = std::string_view::npos;
+        char op = 0;
+
+        // ccan right to left
+        for (std::size_t i = expr.size(); i > 0; --i) {
+            char c = expr[i - 1];
+            if (c == ']')
+                depth++;
+            else if (c == '[')
+                depth--;
+            else if (depth == 0) {
+                if (c == '+' || c == '-') {
+                    split_pos = i - 1;
+                    op = c;
+                    break;
+                }
+            }
+        }
+
+        if (split_pos != std::string_view::npos) {
+            auto left = eval_address(expr.substr(0, split_pos));
+            auto right = eval_address(expr.substr(split_pos + 1));
+
+            if (left && right) {
+                return (op == '+') ? (*left + *right) : (*left - *right);
+            }
+            return std::nullopt;
+        }
+
+        // handle dereference [...]
+        if (expr.starts_with('[') && expr.ends_with(']')) {
+            auto inside = eval_address(expr.substr(1, expr.size() - 2));
+            if (inside && target) {
+                std::uintptr_t ptr_addr = *inside;
+                std::uintptr_t val = 0;
+                std::vector<std::byte> buf(8);
+                if (target->read_memory(ptr_addr, buf)) {
+                    std::memcpy(&val, buf.data(), 8);
+                    return val;
+                }
+            }
+            return std::nullopt;
+        }
+
+        if (auto val = parse_hex(expr)) {
+            return val;
+        }
+
+        if (target) {
+            auto regions_exp = target->get_memory_regions();
+            if (regions_exp) {
+                for (const auto& r : *regions_exp) {
+                    std::filesystem::path p(r.name);
+                    if (p.filename().string() == expr || r.name == expr) {
+                        return r.base_address;
+                    }
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
+
     void memory_view::draw_nav() {
         ImGui::SetNextItemWidth(180.0f);
         const auto preview = active_idx ? blocks[*active_idx]->name.c_str() : "Select...";
@@ -88,14 +164,19 @@ namespace ui {
             show_create = true;
 
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(200.0f);
-        if (ImGui::InputText("##addr", addr_buf, sizeof(addr_buf), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        ImGui::SetNextItemWidth(260.0f);
+        if (ImGui::InputTextWithHint(
+                    "##addr", "Address / Expression", addr_buf, sizeof(addr_buf), ImGuiInputTextFlags_EnterReturnsTrue
+            )) {
             if (active_idx) {
-                if (auto val = parse_addr(addr_buf)) {
+                if (auto val = eval_address(addr_buf)) {
                     blocks[*active_idx]->base = *val;
                     refresh_cache();
                 }
             }
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Supports: 0x1234, [0x1234], [module+0x10], arithmetic (+, -)");
         }
 
         ImGui::SameLine();
