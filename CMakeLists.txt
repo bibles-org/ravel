@@ -52,6 +52,7 @@ add_executable(${PROJECT_NAME}
 
   src/core/process.cpp
   src/core/file_target.cpp
+  src/core/pe_dumper.cpp
 
   src/core/parsers/elf_parser.cpp
   src/core/parsers/pe_parser.cpp

@@ -1,9 +1,9 @@
-// FILE: src/app/application.cpp
 #include "application.h"
 
 #include <GLFW/glfw3.h>
 #include <app/ctx.h>
 #include <core/file_target.h>
+#include <core/pe_dumper.h>
 #include <core/process.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -152,6 +152,39 @@ namespace app {
         }
     }
 
+    void application::show_dump_popup() {
+        if (m_show_dump_popup) {
+            ImGui::OpenPopup("Dump PE Image");
+        }
+
+        if (ImGui::BeginPopupModal("Dump PE Image", &m_show_dump_popup, ImGuiWindowFlags_AlwaysAutoResize)) {
+            static char path_buf[1024] = "dump.exe";
+            ImGui::InputText("Output File", path_buf, sizeof(path_buf));
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::Button("Dump", ImVec2(120, 0))) {
+                if (active_target && active_target->is_live()) {
+                    auto result = core::dump_pe_image(active_target.get(), path_buf);
+                    if (!result) {
+                        std::println(stderr, "failed to dump pe image (code={})", static_cast<int>(result.error()));
+                    }
+                }
+                m_show_dump_popup = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                m_show_dump_popup = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+
     void application::render_top_bar() {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 8.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 6.0f));
@@ -216,6 +249,16 @@ namespace app {
                 ImGui::Separator();
                 ImGui::Spacing();
 
+                if (ImGui::MenuItem(
+                            "Dump PE Image...", nullptr, false, active_target != nullptr && active_target->is_live()
+                    )) {
+                    m_show_dump_popup = true;
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
                 if (ImGui::MenuItem(std::format("{}  Exit", ui::icons::close).c_str())) {
                     glfwSetWindowShouldClose(m_window_handle.get(), 1);
                 }
@@ -273,6 +316,7 @@ namespace app {
 
         render_top_bar();
         show_open_file_popup();
+        show_dump_popup();
 
         ImGuiID dockspace_id = ImGui::GetID("RavelDockspace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);

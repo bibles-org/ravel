@@ -46,10 +46,12 @@ namespace app {
         void render_ui();
         void render_top_bar();
         void show_open_file_popup();
+        void show_dump_popup();
 
         std::unique_ptr<GLFWwindow, glfw_deleter> m_window_handle;
         std::vector<view_entry> m_views;
 
         bool m_show_open_file_popup = false;
+        bool m_show_dump_popup = false;
     };
 } // namespace app

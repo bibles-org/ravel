@@ -3,6 +3,7 @@
 
 #include <app/ctx.h>
 #include <core/file_target.h>
+#include <core/pe_dumper.h>
 #include <core/process.h>
 #include <print>
 
@@ -91,9 +92,7 @@ namespace cli {
             }
             auto result = proc->enumerate_processes();
             if (!result) {
-                std::println(
-                        stderr, "Failed to enumerate processes (code={}).", static_cast<int>(result.error())
-                );
+                std::println(stderr, "Failed to enumerate processes (code={}).", static_cast<int>(result.error()));
                 return command_status::ok;
             }
             const auto& processes = result.value();
@@ -125,8 +124,7 @@ namespace cli {
                 std::println("Successfully attached to process {}.", *pid_opt);
             } else {
                 std::println(
-                        stderr, "Failed to attach to process {} (code={}).", *pid_opt,
-                        static_cast<int>(result.error())
+                        stderr, "Failed to attach to process {} (code={}).", *pid_opt, static_cast<int>(result.error())
                 );
             }
             return command_status::ok;
@@ -154,9 +152,7 @@ namespace cli {
             }
             auto result = app::active_target->get_memory_regions();
             if (!result) {
-                std::println(
-                        stderr, "Failed to get memory regions (code={}).", static_cast<int>(result.error())
-                );
+                std::println(stderr, "Failed to get memory regions (code={}).", static_cast<int>(result.error()));
                 return command_status::ok;
             }
             std::println("{:<18} {:<18} {:<10} {:<10} {}", "Base Address", "End Address", "Size", "Perms", "Name");
@@ -280,6 +276,32 @@ namespace cli {
             return command_status::ok;
         }
 
+        command_status handle_dump(const std::vector<std::string_view>& args) {
+            if (args.empty()) {
+                std::println(stderr, "Usage: dump <output_file>");
+                return command_status::ok;
+            }
+            if (!app::active_target) {
+                std::println(stderr, "No active target.");
+                return command_status::ok;
+            }
+            if (!app::active_target->is_live()) {
+                std::println(stderr, "'dump' is only available for live targets.");
+                return command_status::ok;
+            }
+            auto* proc = static_cast<core::process*>(app::active_target.get());
+            if (!proc->is_attached()) {
+                std::println(stderr, "Not attached to any process.");
+                return command_status::ok;
+            }
+
+            auto result = core::dump_pe_image(app::active_target.get(), args[0]);
+            if (!result) {
+                std::println(stderr, "Failed to dump pe image (code={}).", static_cast<int>(result.error()));
+            }
+            return command_status::ok;
+        }
+
     } // namespace
 
     void register_all_commands(dispatcher& d) {
@@ -334,6 +356,11 @@ namespace cli {
                 "disasm", {.handler = handle_disasm,
                            .help_text = "Disassembles code at a given address.",
                            .usage_text = "disasm <address> [instruction_count]"}
+        );
+        d.register_command(
+                "dump", {.handler = handle_dump,
+                         .help_text = "Dumps the PE image of the attached process to disk",
+                         .usage_text = "dump <output_file>"}
         );
     }
 

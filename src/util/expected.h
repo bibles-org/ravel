@@ -18,5 +18,9 @@ namespace core {
         ptrace_write_failed,
         process_wait_failed,
         process_is_a_kernel_thread,
+
+        not_found,
+        invalid_format,
+        file_write_error,
     };
 } // namespace core
