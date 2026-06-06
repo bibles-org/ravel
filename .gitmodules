@@ -7,7 +7,7 @@
   branch = docking
 [submodule "vendor/zydis-bridge"]
 	path = vendor/zydis-bridge
-	url = https://github.com/bibles-org/zydis-bridge
+	url = https://github.com/moleium/zydis-bridge.git
 [submodule "vendor/zydiff"]
 	path = vendor/zydiff
 	url = https://github.com/moleium/zydiff
